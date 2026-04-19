@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TIIP / SAIL CRM</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f2;color:#1a2e22;min-height:100vh}
+:root{
+  --green:#1e6b42;--green2:#2e8653;--green-light:#e4f2ea;
+  --gold:#b8922a;--gold-light:#fdf5e0;
+  --border:#d8e4dc;--card:#fff;--muted:#6b8070;
+  --red:#c0392b;--orange:#d4681a;--blue:#1a6fa8;--purple:#6a3c9a;
+}
+
+/* TOPBAR */
+.topbar{background:#163626;color:#fff;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.22)}
+.logo{display:flex;align-items:center;gap:11px}
+.logo-sq{background:var(--gold);color:#163626;font-weight:900;font-size:14px;border-radius:7px;width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+.logo-name{font-size:16px;font-weight:700}
+.logo-sub{font-size:10px;color:#8dbfa0;letter-spacing:.3px}
+.topbar-right{display:flex;align-items:center;gap:10px;font-size:12px;color:#8dbfa0}
+
+/* NAV */
+.nav{background:#fff;border-bottom:2px solid var(--border);display:flex;padding:0 22px;overflow-x:auto}
+.nav-btn{padding:12px 18px;font-size:13px;font-weight:600;color:var(--muted);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;white-space:nowrap}
+.nav-btn:hover{color:var(--green)}
+.nav-btn.active{color:var(--green);border-bottom-color:var(--green)}
+
+/* MAIN */
+.main{padding:22px;max-width:1400px;margin:0 auto}
+
+/* CARD */
+.card{background:var(--card);border-radius:11px;border:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.card-hd{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:13px;font-weight:700;color:#163626}
+.card-body{padding:16px 18px}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:#f6faf7;font-weight:700;text-align:left;padding:9px 13px;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+thead th:hover{color:var(--green)}
+tbody tr{border-bottom:1px solid #eef3ef;transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--green-light)}
+td{padding:9px 13px;vertical-align:middle}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+
+/* BTN */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--green2);color:#fff}.btn-primary:hover{background:#256b40}
+.btn-secondary{background:#f0f4f2;color:#1a2e22;border:1px solid var(--border)}.btn-secondary:hover{background:var(--border)}
+.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#a93226}
+.btn-gold{background:var(--gold);color:#fff}.btn-gold:hover{background:#9a7a22}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#155d8e}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-xs{padding:3px 8px;font-size:10px}
+
+/* FILTER BAR */
+.filter-bar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.fi{padding:7px 11px;border-radius:8px;border:1px solid var(--border);font-size:12px;color:#1a2e22;background:#fff}
+.fi:focus{outline:none;border-color:var(--green)}
+.fi.stretch{flex:1;min-width:180px}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.44);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:#fff;border-radius:13px;width:100%;max-width:620px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.24)}
+.modal-wide{max-width:820px}
+.modal-hd{padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:1}
+.modal-title{font-size:15px;font-weight:700}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1}
+.modal-body{padding:18px 22px}
+.modal-foot{padding:14px 22px 18px;display:flex;gap:9px;justify-content:flex-end;border-top:1px solid var(--border)}
+
+/* FORM */
+.fg{margin-bottom:13px}
+.fl{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;display:block;text-transform:uppercase;letter-spacing:.5px}
+.finp{width:100%;padding:8px 11px;border-radius:8px;border:1px solid var(--border);font-size:13px;color:#1a2e22;background:#fff}
+.finp:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(30,107,66,.1)}
+textarea.finp{resize:vertical;min-height:68px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px}
+@media(max-width:600px){.frow,.frow3{grid-template-columns:1fr}}
+.ferr{color:var(--red);font-size:11px;margin-top:3px}
+
+/* SECTION HEADER */
+.sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.sec-title{font-size:18px;font-weight:700;color:#163626}
+.sec-sub{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* INNER TABS */
+.itabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.itab{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:#f0f4f2;color:var(--muted);transition:all .15s}
+.itab.active{background:var(--green2);color:#fff;border-color:var(--green2)}
+.itab.blue-active.active{background:var(--blue);border-color:var(--blue)}
+.itab.purple-active.active{background:var(--purple);border-color:var(--purple)}
+
+/* KANBAN */
+.kanban-wrap{overflow-x:auto;padding-bottom:12px}
+.kanban{display:flex;gap:10px;min-width:max-content}
+.kb-col{width:190px;flex-shrink:0}
+.kb-hd{padding:9px 12px;border-radius:8px 8px 0 0;font-size:11px;font-weight:700;display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border);border-bottom:none}
+.kb-body{min-height:120px;border-radius:0 0 8px 8px;border:1px solid var(--border);background:#fafcfa;padding:7px;display:flex;flex-direction:column;gap:5px;transition:background .15s}
+.kb-body.drag-over{background:#e4f2ea;border-color:var(--green2);border-style:dashed}
+.kb-card{background:#fff;border:1px solid var(--border);border-radius:7px;padding:9px 11px;cursor:grab;transition:box-shadow .15s,opacity .15s;font-size:12px;user-select:none}
+.kb-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.kb-card.is-dragging{opacity:.4;cursor:grabbing}
+.kb-card-name{font-weight:700;margin-bottom:2px;font-size:12px}
+.kb-card-contact{color:var(--muted);font-size:11px}
+.kb-card-amt{color:var(--green2);font-weight:600;font-size:11px;margin-top:3px}
+.kb-card-prob{font-size:10px;color:var(--muted)}
+.kb-hold{margin-top:14px}
+.kb-hold-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding:0 4px}
+
+/* COMMAND CENTER */
+.cc-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:900px){.cc-grid{grid-template-columns:1fr}}
+.cc-welcome{margin-bottom:20px}
+.cc-welcome h1{font-size:22px;font-weight:800;color:#163626}
+.cc-welcome p{font-size:13px;color:var(--muted);margin-top:3px}
+.stale-row{display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:9px;background:#fff;border:1px solid var(--border);margin-bottom:7px;cursor:pointer;transition:box-shadow .15s}
+.stale-row:hover{box-shadow:0 3px 10px rgba(0,0,0,.08)}
+.stale-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.stale-info{flex:1}
+.stale-name{font-weight:700;font-size:13px}
+.stale-org{font-size:11px;color:var(--muted)}
+.stale-days{font-size:11px;font-weight:700;white-space:nowrap}
+.renewal-row{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border-radius:9px;background:#fff;border:1px solid var(--border);margin-bottom:7px}
+.task-item{display:flex;align-items:flex-start;gap:10px;padding:10px 13px;border-radius:9px;background:#fff;border:1px solid var(--border);margin-bottom:6px}
+.task-cb{width:16px;height:16px;border-radius:4px;border:2px solid var(--border);cursor:pointer;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center}
+.task-cb.done{background:var(--green2);border-color:var(--green2)}
+.task-text{flex:1;font-size:13px}
+.task-text.done{text-decoration:line-through;color:var(--muted)}
+
+/* CONTACT DETAIL */
+.det-row{display:flex;gap:5px;align-items:flex-start;margin-bottom:10px;font-size:13px}
+.det-lbl{min-width:110px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;padding-top:1px}
+.det-val{flex:1}
+.pipeline-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;margin-bottom:5px;margin-right:5px}
+
+/* CORRESPONDENCE */
+.corr-timeline{display:flex;flex-direction:column;gap:0}
+.corr-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.corr-item:last-child{border-bottom:none}
+.corr-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.corr-body{flex:1}
+.corr-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px}
+.corr-subject{font-weight:700;font-size:13px}
+.corr-date{font-size:11px;color:var(--muted)}
+.corr-text{font-size:12px;color:#444;line-height:1.5}
+.corr-type{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+
+/* REPORTS */
+.kpi-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.kpi{background:var(--card);border-radius:10px;border:1px solid var(--border);padding:14px 18px;min-width:140px;flex:1;border-left:4px solid var(--green2)}
+.kpi.gold{border-left-color:var(--gold)}
+.kpi.blue{border-left-color:var(--blue)}
+.kpi.purple{border-left-color:var(--purple)}
+.kpi-val{font-size:24px;font-weight:800;color:#163626;line-height:1}
+.kpi-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+.report-section{margin-bottom:22px}
+.report-section-title{font-size:13px;font-weight:700;color:#163626;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--green-light)}
+.hbar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:12px}
+.hbar-label{min-width:150px;text-align:right;color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar-track{flex:1;height:20px;background:#f0f4f2;border-radius:4px;overflow:hidden}
+.hbar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:700;color:#fff;min-width:4px;transition:width .4s}
+.hbar-val{min-width:70px;font-size:11px;font-weight:600}
+
+/* IMPORT */
+.import-row{display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:7px;background:#f8faf9;border:1px solid var(--border);margin-bottom:6px;font-size:12px}
+.import-err{color:var(--red)}
+.import-ok{color:var(--green2)}
+
+/* AUTH */
+.auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#163626 0%,#1e4d34 100%)}
+.auth-box{background:#fff;border-radius:16px;padding:40px 44px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.28);text-align:center}
+.auth-logo{display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:var(--gold);border-radius:14px;font-size:20px;font-weight:900;color:#163626;margin-bottom:20px}
+.auth-title{font-size:22px;font-weight:800;color:#163626;margin-bottom:4px}
+.auth-sub{font-size:13px;color:var(--muted);margin-bottom:28px}
+.auth-input{width:100%;padding:11px 14px;border-radius:9px;border:1.5px solid var(--border);font-size:15px;text-align:center;letter-spacing:2px;margin-bottom:12px}
+.auth-input:focus{outline:none;border-color:var(--green2)}
+.auth-err{color:var(--red);font-size:12px;margin-bottom:10px}
+.auth-btn{width:100%;padding:12px;border-radius:9px;background:var(--green2);color:#fff;border:none;font-size:15px;font-weight:700;cursor:pointer}
+.auth-btn:hover{background:#256b40}
+
+/* MISC */
+.empty{text-align:center;padding:32px;color:var(--muted);font-size:13px}
+.tag-ts{background:#dbeafe;color:#1e40af;border-radius:4px;font-size:10px;font-weight:700;padding:2px 5px}
+.tag-ob{background:#dcfce7;color:#166534;border-radius:4px;font-size:10px;font-weight:700;padding:2px 5px}
+.warn-bg{background:var(--gold-light)!important}
+.flex{display:flex}.gap-8{gap:8px}.gap-10{gap:10px}.items-c{align-items:center}.jsb{justify-content:space-between}
+.mb-14{margin-bottom:14px}.mb-18{margin-bottom:18px}.mt-8{margin-top:8px}.mt-12{margin-top:12px}
+.txt-muted{color:var(--muted);font-size:12px}.fw7{font-weight:700}.cursor-p{cursor:pointer}
+.sync-bar{background:#163626;color:#8dbfa0;font-size:12px;padding:4px 22px;display:flex;align-items:center;gap:10px}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#4caf80;flex-shrink:0}
+.sync-dot.pulse{animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Multi-select contact picker */
+.contact-picker{border:1px solid var(--border);border-radius:8px;max-height:160px;overflow-y:auto;background:#fff}
+.contact-picker-item{display:flex;align-items:center;gap:9px;padding:7px 11px;cursor:pointer;font-size:13px;transition:background .1s}
+.contact-picker-item:hover{background:var(--green-light)}
+.contact-picker-item input{cursor:pointer}
+
+/* Loading */
+.loading-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f0f4f2}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--green2);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* PRINT */
+@media print{
+  .topbar,.nav,.sync-bar,.nav-btn,.btn,.filter-bar,.itabs,.no-print{display:none!important}
+  .main{padding:0}
+  .report-print-area{display:block!important}
+  body{background:#fff}
+  .kpi{border:1px solid #ccc;break-inside:avoid}
+  .card{box-shadow:none;border:1px solid #ccc}
+  .report-section{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useMemo,useCallback,useRef} = React;
+
+/* ── FIREBASE ───────────────────────────────────────────── */
+const FIREBASE_CONFIG = {
+  apiKey:"AIzaSyBrLn5FUNT-WVPCXzu2sF8wYXgLmRzuPS8",
+  authDomain:"sail-crm.firebaseapp.com",
+  projectId:"sail-crm",
+  storageBucket:"sail-crm.firebasestorage.app",
+  messagingSenderId:"386178845446",
+  appId:"1:386178845446:web:60a116e3ad169888e9ec87"
+};
+let _app; try{_app=firebase.app();}catch(e){_app=firebase.initializeApp(FIREBASE_CONFIG);}
+const DB = firebase.firestore(_app, 'default');
+
+/* ── CONSTANTS ──────────────────────────────────────────── */
+const CRM_PASSWORD = "tiip2026";
+
+const PIPELINES = {
+  subscriber:{label:"SAIL Subscribers",entity:"SAIL",color:"#1e6b42",bg:"#e4f2ea",
+    stages:["Qualified","Scheduling Demo","Demoed","Term Sheet Sent","Contract Review","Subscriber","Up for Renewal"],
+    holdStages:["Stalled","On Hold","Unqualified","Loss"]},
+  capital:{label:"SAIL Capital Raise",entity:"SAIL",color:"#1a6fa8",bg:"#dbeafe",
+    stages:["Identified","First Contact","Pitched","Due Diligence","Committed","Closed"],
+    holdStages:["On Hold","Loss"]},
+  projects:{label:"TIIP Projects",entity:"TIIP",color:"#6a3c9a",bg:"#f0e6fb",
+    stages:["Prospect","Proposal","Scoping","Active","Complete","Invoiced"],
+    holdStages:["On Hold","Loss"]}
+};
+
+const STAGE_PROB = {
+  "Qualified":10,"Scheduling Demo":20,"Demoed":35,"Term Sheet Sent":60,
+  "Contract Review":80,"Subscriber":100,"Up for Renewal":85,
+  "Identified":5,"First Contact":15,"Pitched":30,"Due Diligence":60,"Committed":85,"Closed":100,
+  "Prospect":10,"Proposal":25,"Scoping":50,"Active":90,"Complete":100,"Invoiced":100,
+  "Stalled":10,"On Hold":5,"Unqualified":0,"Loss":0
+};
+
+const ORG_TYPES = ["Asset Manager","Central Bank","Coalition","Consultant/OCIO","Consulting",
+  "Endowment","Family Office","Foundation","Insurance/Asset Owner","Organization","Pension Fund","Wealth Mgmt","Other"];
+const PROJECT_TYPES = ["Consulting","Research","Cohort","Other"];
+const NOTE_TYPES = ["Email","Call","Meeting","Note"];
+const NOTE_COLORS = {Email:"#1a6fa8",Call:"#1e6b42",Meeting:"#6a3c9a",Note:"#b8922a"};
+
+/* ── SEED DATA ──────────────────────────────────────────── */
+const CONTACTS_SEED = [
+  {id:"c1",name:"Lynn Paquin",email:"LPaquin@CalSTRS.com",phone:"",organization:"CalSTRS",orgType:"Pension Fund",title:"",lastContact:"2025-07-01",notes:"California State Teachers Retirement. 2nd largest US pension."},
+  {id:"c2",name:"Caroline Flammer",email:"",phone:"",organization:"Columbia University",orgType:"Endowment",title:"",lastContact:"2025-06-01",notes:"Steve to confirm next steps"},
+  {id:"c3",name:"Takeshi Kimura",email:"kimura51838@nissay.co.jp",phone:"",organization:"Nippon Life",orgType:"Insurance/Asset Owner",title:"",lastContact:"2025-08-28",notes:"Largest private asset owner in Japan."},
+  {id:"c4",name:"Carole Laible",email:"claible@domini.com",phone:"",organization:"Domini",orgType:"Asset Manager",title:"",lastContact:"2025-09-03",notes:"Pioneer in impact investing since 1991."},
+  {id:"c5",name:"Jake Barnett",email:"jbarnett@wespath.org",phone:"",organization:"Wespath",orgType:"Pension Fund",title:"",lastContact:"2025-12-04",notes:"Sent nudge Dec 4"},
+  {id:"c6",name:"Caroline Escott",email:"caroline.escott@railpen.com",phone:"",organization:"Railpen",orgType:"Pension Fund",title:"",lastContact:"2025-10-13",notes:"Included 20K subscription for next budget cycle"},
+  {id:"c7",name:"Katsuji Imata",email:"katsuji.imata@blue-marble.co.jp",phone:"",organization:"Japan Impact Consortium",orgType:"Coalition",title:"",lastContact:"2025-10-13",notes:"Demo Oct 13, follow-up sent, awaiting response"},
+  {id:"c8",name:"Sara Murphy",email:"sara.murphy@sierraclubfoundation.org",phone:"",organization:"Sierra Club Foundation",orgType:"Foundation",title:"",lastContact:"2025-12-04",notes:"Sent nudge Dec 4"},
+  {id:"c9",name:"Adam Connaker",email:"aconnaker@surdna.org",phone:"",organization:"Surdna Foundation",orgType:"Foundation",title:"",lastContact:"2025-11-01",notes:"Willing to be listed, encouraging Cambridge Associates"},
+  {id:"c10",name:"Tobias Temmen",email:"tobias.temmen@arc-fund.co",phone:"",organization:"ARC",orgType:"Asset Manager",title:"",lastContact:"2025-10-01",notes:"Bill needs to follow-up"},
+  {id:"c11",name:"Alex Bernhardt",email:"abernhardt@cambridgeassociates.com",phone:"",organization:"Cambridge Associates",orgType:"Consultant/OCIO",title:"",lastContact:"2025-12-04",notes:"Nudge Dec 4; discussed adding TIIP to consultant DB"},
+  {id:"c12",name:"Wim Borgdorff",email:"w.borgdorff@anthos.nl",phone:"",organization:"Anthos Fund & Asset Mgmt",orgType:"Family Office",title:"",lastContact:"2025-10-15",notes:"Positive demo, needs internal approval"},
+  {id:"c13",name:"Kiwoom Contact",email:"",phone:"",organization:"Kiwoom Asset Mgmt",orgType:"Asset Manager",title:"",lastContact:"2025-09-01",notes:"Interest via Nippon connection"},
+  {id:"c14",name:"Molly Minnick",email:"mminnick@tarahealthfoundation.org",phone:"",organization:"Tara Health Foundation",orgType:"Foundation",title:"",lastContact:"2025-11-15",notes:""},
+  {id:"c15",name:"Mary Mountcastle",email:"mmountcastle@dupontfund.org",phone:"",organization:"Jessie Ball duPont Fund",orgType:"Foundation",title:"",lastContact:"2025-10-01",notes:""},
+  {id:"c16",name:"Russell Contact",email:"",phone:"",organization:"Russell Family Foundation",orgType:"Foundation",title:"",lastContact:"2025-09-01",notes:"Steve to confirm"},
+  {id:"c17",name:"Fiona McKinney",email:"fiona.mckinney@laudesfoundation.org",phone:"",organization:"Laudes Foundation",orgType:"Foundation",title:"",lastContact:"2025-11-01",notes:""},
+  {id:"c18",name:"Greg Neichin",email:"greg@ceniarth.com",phone:"",organization:"Ceniarth",orgType:"Family Office",title:"",lastContact:"2025-10-01",notes:"Scheduled follow-up demo"},
+  {id:"c19",name:"Jeff Perkins",email:"jperkins@friendsfiduciary.org",phone:"",organization:"Friends Fiduciary",orgType:"Asset Manager",title:"",lastContact:"2025-10-15",notes:""},
+  {id:"c20",name:"Elizabeth McGeveran",email:"emcgeveran@mcknight.org",phone:"",organization:"McKnight Foundation",orgType:"Foundation",title:"",lastContact:"2025-11-01",notes:""},
+  {id:"c21",name:"Noelle Laing",email:"nlaing@wgf.org",phone:"",organization:"Wallace Global Fund",orgType:"Foundation",title:"",lastContact:"2025-10-01",notes:""},
+  {id:"c22",name:"Laura Campos",email:"lcampos@nathancummings.org",phone:"",organization:"Nathan Cummings Foundation",orgType:"Foundation",title:"",lastContact:"2025-11-01",notes:""},
+  {id:"c23",name:"PGGM Contact",email:"",phone:"",organization:"PGGM",orgType:"Pension Fund",title:"",lastContact:"2025-08-01",notes:"Major Dutch pension administrator."},
+  {id:"c24",name:"APG Contact",email:"",phone:"",organization:"APG",orgType:"Pension Fund",title:"",lastContact:"2025-08-01",notes:"World's largest pension investors. Netherlands."},
+  {id:"c25",name:"Gen IM Contact",email:"",phone:"",organization:"Generation Investment Mgmt",orgType:"Asset Manager",title:"",lastContact:"2025-08-01",notes:"Co-founded by Al Gore."},
+  {id:"c26",name:"Beth Bafford",email:"",phone:"",organization:"Calvert Impact Capital",orgType:"Asset Manager",title:"",lastContact:"2025-09-01",notes:"Impact investing pioneer."},
+  {id:"c27",name:"Omidyar Contact",email:"",phone:"",organization:"Omidyar Network",orgType:"Organization",title:"",lastContact:"2025-09-01",notes:"Pierre Omidyar philanthropic firm."},
+  {id:"c28",name:"CDPQ Contact",email:"",phone:"",organization:"CDPQ",orgType:"Pension Fund",title:"",lastContact:"2025-08-01",notes:"Caisse de depot Quebec."},
+  {id:"c29",name:"Adasina Contact",email:"",phone:"",organization:"Adasina Social Capital",orgType:"Asset Manager",title:"",lastContact:"2025-09-01",notes:"Social justice and DEI-focused."},
+  {id:"c30",name:"Margot Brandenburg",email:"m.brandenburg@fordfoundation.org",phone:"",organization:"Ford Foundation",orgType:"Foundation",title:"",lastContact:"2025-10-01",notes:"Monique to follow-up"},
+  {id:"c31",name:"Mike McCreless",email:"mike.mccreless@impactfrontiers.org",phone:"",organization:"Impact Frontiers",orgType:"Organization",title:"",lastContact:"2025-10-01",notes:"Demo done, interest vague"},
+  {id:"c32",name:"Georges Dyer",email:"georges@intentionalendowments.org",phone:"",organization:"Intentional Endowments",orgType:"Organization",title:"",lastContact:"2025-10-01",notes:""},
+  {id:"c33",name:"Christina Leijonhufvud",email:"christina@bluemark.co",phone:"",organization:"BlueMark",orgType:"Consulting",title:"",lastContact:"2025-12-02",notes:"Scheduling discussion with Tristan"},
+  {id:"c34",name:"Eric Stephenson",email:"eric@cordesfoundation.org",phone:"",organization:"Pathstone",orgType:"Wealth Mgmt",title:"",lastContact:"2025-10-01",notes:""},
+  {id:"c35",name:"David Erickson",email:"David.Erickson@ny.frb.org",phone:"",organization:"Federal Reserve Bank NY",orgType:"Central Bank",title:"",lastContact:"2025-09-01",notes:""},
+  {id:"c36",name:"Kelsey Whatley",email:"kwhatley@ceritypartners.com",phone:"",organization:"Cerity Partners",orgType:"Consultant/OCIO",title:"",lastContact:"2025-09-01",notes:""},
+  {id:"c37",name:"Dave Wallock",email:"dave.wallack@forthelongterm.org",phone:"",organization:"For The Long Term",orgType:"Organization",title:"",lastContact:"2025-11-01",notes:"Asked to update stewardship chapter"}
+];
+
+const OPPS_SEED = [
+  {id:"o1",name:"CalSTRS",pipeline:"subscriber",contactIds:["c1"],primaryContactId:"c1",stage:"Subscriber",amount:10000,probability:100,closeDate:"2026-07-01",startDate:"2025-07-01",renewalDate:"2026-07-01",users:5,termSheet:true,onboarded:true,projectType:"",notes:""},
+  {id:"o2",name:"Columbia University",pipeline:"subscriber",contactIds:["c2"],primaryContactId:"c2",stage:"Subscriber",amount:0,probability:100,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:"Amount TBD"},
+  {id:"o3",name:"Nippon Life",pipeline:"subscriber",contactIds:["c3"],primaryContactId:"c3",stage:"Subscriber",amount:4000,probability:100,closeDate:"2026-09-01",startDate:"2025-08-28",renewalDate:"2026-09-01",users:4,termSheet:true,onboarded:true,projectType:"",notes:""},
+  {id:"o4",name:"Domini",pipeline:"subscriber",contactIds:["c4"],primaryContactId:"c4",stage:"Subscriber",amount:10000,probability:100,closeDate:"2026-09-01",startDate:"2025-09-03",renewalDate:"2026-09-01",users:5,termSheet:true,onboarded:true,projectType:"",notes:""},
+  {id:"o5",name:"Wespath",pipeline:"subscriber",contactIds:["c5"],primaryContactId:"c5",stage:"Stalled",amount:5000,probability:10,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o6",name:"Railpen",pipeline:"subscriber",contactIds:["c6"],primaryContactId:"c6",stage:"Stalled",amount:20000,probability:10,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:"Budgeted 20K for next cycle"},
+  {id:"o7",name:"Japan Impact Consortium",pipeline:"subscriber",contactIds:["c7"],primaryContactId:"c7",stage:"Demoed",amount:0,probability:35,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:"Amount TBD"},
+  {id:"o8",name:"Sierra Club Foundation",pipeline:"subscriber",contactIds:["c8"],primaryContactId:"c8",stage:"Term Sheet Sent",amount:20000,probability:60,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:true,onboarded:false,projectType:"",notes:""},
+  {id:"o9",name:"Surdna Foundation",pipeline:"subscriber",contactIds:["c9"],primaryContactId:"c9",stage:"Contract Review",amount:0,probability:80,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:"Encouraging Cambridge Associates"},
+  {id:"o10",name:"ARC",pipeline:"subscriber",contactIds:["c10"],primaryContactId:"c10",stage:"Stalled",amount:5000,probability:10,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o11",name:"Cambridge Associates",pipeline:"subscriber",contactIds:["c11"],primaryContactId:"c11",stage:"Demoed",amount:25000,probability:35,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o12",name:"Anthos Fund & Asset Mgmt",pipeline:"subscriber",contactIds:["c12"],primaryContactId:"c12",stage:"Demoed",amount:10000,probability:35,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o13",name:"Kiwoom Asset Mgmt",pipeline:"subscriber",contactIds:["c13"],primaryContactId:"c13",stage:"Stalled",amount:4000,probability:10,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o14",name:"Tara Health Foundation",pipeline:"subscriber",contactIds:["c14"],primaryContactId:"c14",stage:"Demoed",amount:5000,probability:35,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o15",name:"Jessie Ball duPont Fund",pipeline:"subscriber",contactIds:["c15"],primaryContactId:"c15",stage:"Demoed",amount:5000,probability:35,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o16",name:"Russell Family Foundation",pipeline:"subscriber",contactIds:["c16"],primaryContactId:"c16",stage:"Stalled",amount:5000,probability:10,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o17",name:"Laudes Foundation",pipeline:"subscriber",contactIds:["c17"],primaryContactId:"c17",stage:"Demoed",amount:20000,probability:35,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o18",name:"Ceniarth",pipeline:"subscriber",contactIds:["c18"],primaryContactId:"c18",stage:"Demoed",amount:5000,probability:35,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o19",name:"Friends Fiduciary",pipeline:"subscriber",contactIds:["c19"],primaryContactId:"c19",stage:"Demoed",amount:5000,probability:35,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o20",name:"McKnight Foundation",pipeline:"subscriber",contactIds:["c20"],primaryContactId:"c20",stage:"Scheduling Demo",amount:10000,probability:20,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o21",name:"Wallace Global Fund",pipeline:"subscriber",contactIds:["c21"],primaryContactId:"c21",stage:"Demoed",amount:5000,probability:35,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o22",name:"Nathan Cummings Foundation",pipeline:"subscriber",contactIds:["c22"],primaryContactId:"c22",stage:"Scheduling Demo",amount:10000,probability:20,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o23",name:"PGGM",pipeline:"subscriber",contactIds:["c23"],primaryContactId:"c23",stage:"Qualified",amount:20000,probability:10,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o24",name:"APG",pipeline:"subscriber",contactIds:["c24"],primaryContactId:"c24",stage:"Qualified",amount:20000,probability:10,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o25",name:"Generation Investment Mgmt",pipeline:"subscriber",contactIds:["c25"],primaryContactId:"c25",stage:"Qualified",amount:20000,probability:10,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o26",name:"Calvert Impact Capital",pipeline:"subscriber",contactIds:["c26"],primaryContactId:"c26",stage:"Demoed",amount:10000,probability:35,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o27",name:"Omidyar Network",pipeline:"subscriber",contactIds:["c27"],primaryContactId:"c27",stage:"Demoed",amount:10000,probability:35,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o28",name:"CDPQ",pipeline:"subscriber",contactIds:["c28"],primaryContactId:"c28",stage:"Qualified",amount:20000,probability:10,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o29",name:"Adasina Social Capital",pipeline:"subscriber",contactIds:["c29"],primaryContactId:"c29",stage:"Demoed",amount:5000,probability:35,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o30",name:"Ford Foundation",pipeline:"subscriber",contactIds:["c30"],primaryContactId:"c30",stage:"Unqualified",amount:0,probability:0,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o31",name:"Impact Frontiers",pipeline:"subscriber",contactIds:["c31"],primaryContactId:"c31",stage:"On Hold",amount:0,probability:5,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:"Interest vague"},
+  {id:"o32",name:"BlueMark",pipeline:"subscriber",contactIds:["c33"],primaryContactId:"c33",stage:"Contract Review",amount:0,probability:80,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:"Scheduling w/ Tristan"},
+  {id:"o33",name:"Pathstone",pipeline:"subscriber",contactIds:["c34"],primaryContactId:"c34",stage:"On Hold",amount:0,probability:5,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o34",name:"Fed Reserve Bank NY",pipeline:"subscriber",contactIds:["c35"],primaryContactId:"c35",stage:"Loss",amount:0,probability:0,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""},
+  {id:"o35",name:"Cerity Partners",pipeline:"subscriber",contactIds:["c36"],primaryContactId:"c36",stage:"On Hold",amount:0,probability:5,closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"",notes:""}
+];
+
+/* ── UTILITIES ──────────────────────────────────────────── */
+const TODAY = new Date();
+const fmtAmt = n => n ? "$"+Number(n).toLocaleString() : "TBD";
+const fmtDate = d => {
+  if(!d) return "—";
+  const dt = new Date(d+"T12:00:00");
+  return dt.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+};
+const daysSince = d => {
+  if(!d) return null;
+  return Math.round((TODAY - new Date(d+"T12:00:00"))/86400000);
+};
+const daysUntil = d => {
+  if(!d) return null;
+  return Math.round((new Date(d+"T12:00:00") - TODAY)/86400000);
+};
+const genId = () => Math.random().toString(36).slice(2,10);
+const allStages = pipeKey => {
+  const p = PIPELINES[pipeKey];
+  return p ? [...p.stages, ...p.holdStages] : [];
+};
+
+/* ── SHARED COMPONENTS ──────────────────────────────────── */
+function Modal({title,onClose,children,footer,wide}){
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className={`modal${wide?" modal-wide":""}`}>
+        <div className="modal-hd">
+          <span className="modal-title">{title}</span>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">{children}</div>
+        {footer&&<div className="modal-foot">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+function Confirm({msg,onYes,onNo}){
+  return (
+    <Modal title="Confirm" onClose={onNo}
+      footer={<><button className="btn btn-secondary" onClick={onNo}>Cancel</button><button className="btn btn-danger" onClick={onYes}>Delete</button></>}>
+      <p style={{fontSize:14,lineHeight:1.5}}>{msg}</p>
+    </Modal>
+  );
+}
+
+function StageBadge({stage,pipeline}){
+  const p = pipeline ? PIPELINES[pipeline] : null;
+  const color = p ? p.color : "#555";
+  const bg = p ? p.bg : "#eee";
+  return <span className="badge" style={{background:bg,color}}>{stage}</span>;
+}
+
+function PipeBadge({pipeline}){
+  const p = PIPELINES[pipeline];
+  if(!p) return null;
+  return <span className="badge" style={{background:p.bg,color:p.color,fontSize:"10px"}}>{p.label}</span>;
+}
+
+function HBar({data,color}){
+  const max = Math.max(...data.map(d=>d.value),1);
+  return <div>{data.filter(d=>d.value>0).map((d,i)=>(
+    <div key={i} className="hbar-row">
+      <div className="hbar-label" title={d.name}>{d.name}</div>
+      <div className="hbar-track">
+        <div className="hbar-fill" style={{width:Math.max(3,Math.round(d.value/max*100))+"%",background:color||"#2e8653"}}>
+          {Math.round(d.value/max*100)>20?d.label||d.value:""}
+        </div>
+      </div>
+      <div className="hbar-val">{d.label||d.value}</div>
+    </div>
+  ))}</div>;
+}
+
+/* ── AUTH SCREEN ──────────────────────────────────────────── */
+function AuthScreen({onAuth}){
+  const [pw,setPw]=useState("");
+  const [err,setErr]=useState("");
+  const submit = e => {
+    e.preventDefault();
+    if(pw===CRM_PASSWORD) onAuth();
+    else{setErr("Incorrect password");setPw("");}
+  };
+  return (
+    <div className="auth-screen">
+      <div className="auth-box">
+        <div className="auth-logo">TS</div>
+        <div className="auth-title">TIIP / SAIL CRM</div>
+        <div className="auth-sub">Enter your team password to continue</div>
+        {err&&<div className="auth-err">{err}</div>}
+        <form onSubmit={submit}>
+          <input className="auth-input" type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr("");}} placeholder="••••••••" autoFocus/>
+          <button className="auth-btn" type="submit">Sign In →</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ── COMMAND CENTER ──────────────────────────────────────── */
+function CommandCenter({contacts,opportunities,tasks,saveTask,deleteTask,onViewContact}){
+  const [newTask,setNewTask]=useState("");
+  const today = new Date();
+  const days = d => daysSince(d);
+
+  const staleContacts = useMemo(()=>{
+    return [...contacts]
+      .map(c=>({...c,ds:days(c.lastContact)||999}))
+      .filter(c=>c.ds>30)
+      .sort((a,b)=>b.ds-a.ds);
+  },[contacts]);
+
+  const renewals = useMemo(()=>{
+    return opportunities
+      .filter(o=>o.pipeline==="subscriber" && o.stage==="Subscriber" && o.renewalDate)
+      .map(o=>{
+        const du = daysUntil(o.renewalDate);
+        const pc = contacts.find(c=>c.id===o.primaryContactId);
+        return {...o,daysUntil:du,contact:pc};
+      })
+      .filter(o=>o.daysUntil!=null && o.daysUntil<=120)
+      .sort((a,b)=>a.daysUntil-b.daysUntil);
+  },[opportunities,contacts]);
+
+  const pendingTasks = tasks.filter(t=>!t.done);
+  const doneTasks = tasks.filter(t=>t.done);
+
+  const addTask = () => {
+    if(!newTask.trim()) return;
+    saveTask({id:genId(),text:newTask.trim(),done:false,createdAt:new Date().toISOString()});
+    setNewTask("");
+  };
+
+  const staleColor = ds => ds>90?"#c0392b":ds>60?"#d4681a":"#b8922a";
+
+  const dateStr = today.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+
+  return (
+    <div>
+      <div className="cc-welcome">
+        <h1>Good morning, Bill</h1>
+        <p>{dateStr}</p>
+      </div>
+
+      <div className="cc-grid">
+        {/* FOLLOW UP */}
+        <div>
+          <div className="card">
+            <div className="card-hd">
+              <span className="card-title">⏰ Follow Up Needed <span style={{color:staleColor(60),fontSize:"11px",marginLeft:6}}>{staleContacts.length} contacts</span></span>
+            </div>
+            <div className="card-body" style={{maxHeight:360,overflowY:"auto"}}>
+              {staleContacts.length===0&&<div className="empty">All contacts recently touched ✓</div>}
+              {staleContacts.map(c=>(
+                <div key={c.id} className="stale-row" onClick={()=>onViewContact(c)}>
+                  <div className="stale-dot" style={{background:staleColor(c.ds)}}/>
+                  <div className="stale-info">
+                    <div className="stale-name">{c.name}</div>
+                    <div className="stale-org">{c.organization}</div>
+                  </div>
+                  <div className="stale-days" style={{color:staleColor(c.ds)}}>{c.ds}d ago</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* BCC INBOX */}
+          <div className="card mt-12">
+            <div className="card-hd" style={{opacity:.6}}>
+              <span className="card-title">📬 BCC Inbox — New Contacts to Review</span>
+              <span style={{fontSize:10,background:"#f0f4f2",color:"#6b8070",padding:"2px 8px",borderRadius:20,fontWeight:700}}>COMING SOON</span>
+            </div>
+            <div className="card-body" style={{opacity:.5}}>
+              <div className="empty" style={{padding:"18px 0",fontSize:12}}>
+                BCC email capture not yet active.<br/>
+                Once enabled, emails BCC'd to your CRM address will appear here for review.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* RENEWALS */}
+        <div>
+          <div className="card">
+            <div className="card-hd"><span className="card-title">🔄 Upcoming Renewals <span style={{color:renewals.length>0?"#b8922a":"#6b8070",fontSize:"11px",marginLeft:6}}>{renewals.length} in 120 days</span></span></div>
+            <div className="card-body" style={{maxHeight:180,overflowY:"auto"}}>
+              {renewals.length===0&&<div className="empty">No renewals due in the next 120 days</div>}
+              {renewals.map(o=>(
+                <div key={o.id} className={`renewal-row${o.daysUntil<=30?" warn-bg":""}`}>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:13}}>{o.name}</div>
+                    <div className="txt-muted">{o.contact?.name||"—"}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontWeight:700,fontSize:12,color:o.daysUntil<=30?"#c0392b":"#2e8653"}}>{o.daysUntil}d</div>
+                    <div className="txt-muted">{fmtAmt(o.amount)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* TASKS */}
+          <div className="card mt-12">
+            <div className="card-hd"><span className="card-title">✅ Tasks</span></div>
+            <div className="card-body">
+              <div style={{display:"flex",gap:8,marginBottom:10}}>
+                <input className="finp fi stretch" value={newTask} onChange={e=>setNewTask(e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&addTask()} placeholder="Add a task…"/>
+                <button className="btn btn-primary btn-sm" onClick={addTask}>Add</button>
+              </div>
+              {pendingTasks.map(t=>(
+                <div key={t.id} className="task-item">
+                  <div className="task-cb" onClick={()=>saveTask({...t,done:true})}>
+                    <span style={{color:"#fff",fontSize:9}}>✓</span>
+                  </div>
+                  <div className="task-text">{t.text}</div>
+                  <button className="btn btn-xs btn-secondary" onClick={()=>deleteTask(t.id)}>×</button>
+                </div>
+              ))}
+              {doneTasks.length>0&&(
+                <div style={{marginTop:8,borderTop:"1px solid var(--border)",paddingTop:8}}>
+                  {doneTasks.slice(0,3).map(t=>(
+                    <div key={t.id} className="task-item" style={{opacity:.6}}>
+                      <div className="task-cb done" onClick={()=>saveTask({...t,done:false})}>
+                        <span style={{color:"#fff",fontSize:9}}>✓</span>
+                      </div>
+                      <div className="task-text done">{t.text}</div>
+                      <button className="btn btn-xs btn-secondary" onClick={()=>deleteTask(t.id)}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {pendingTasks.length===0&&doneTasks.length===0&&<div className="empty">No tasks yet</div>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── NOTE FORM ──────────────────────────────────────────── */
+function NoteForm({contactId,onSave,onClose}){
+  const [f,setF]=useState({type:"Note",date:new Date().toISOString().slice(0,10),subject:"",body:""});
+  const upd=(k,v)=>setF(p=>({...p,[k]:v}));
+  const save=()=>{
+    if(!f.subject.trim()){alert("Subject is required");return;}
+    onSave({...f,id:genId(),contactId,createdAt:new Date().toISOString()});
+    onClose();
+  };
+  return (
+    <Modal title="Log Correspondence" onClose={onClose}
+      footer={<><button className="btn btn-secondary" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={save}>Save</button></>}>
+      <div className="frow">
+        <div className="fg"><label className="fl">Type</label>
+          <select className="finp" value={f.type} onChange={e=>upd("type",e.target.value)}>
+            {NOTE_TYPES.map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <div className="fg"><label className="fl">Date</label>
+          <input className="finp" type="date" value={f.date} onChange={e=>upd("date",e.target.value)}/>
+        </div>
+      </div>
+      <div className="fg"><label className="fl">Subject *</label>
+        <input className="finp" value={f.subject} onChange={e=>upd("subject",e.target.value)} placeholder="e.g. Follow-up call re: subscription"/>
+      </div>
+      <div className="fg"><label className="fl">Notes / Body</label>
+        <textarea className="finp" value={f.body} onChange={e=>upd("body",e.target.value)} placeholder="Key points, action items, context…" style={{minHeight:100}}/>
+      </div>
+    </Modal>
+  );
+}
+
+/* ── CONTACT DETAIL ─────────────────────────────────────── */
+function ContactDetail({contact,opportunities,correspondence,onClose,onEdit,onDelete,saveNote,deleteNote}){
+  const [tab,setTab]=useState("info");
+  const [showNoteForm,setShowNoteForm]=useState(false);
+  const [confirmDel,setConfirmDel]=useState(false);
+  const myOpps = opportunities.filter(o=>o.contactIds&&o.contactIds.includes(contact.id));
+  const myNotes = [...correspondence.filter(n=>n.contactId===contact.id)].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const ds = daysSince(contact.lastContact);
+
+  return (
+    <>
+      {confirmDel&&<Confirm msg={`Delete ${contact.name}? This cannot be undone.`} onYes={()=>{onDelete(contact.id);onClose();}} onNo={()=>setConfirmDel(false)}/>}
+      {showNoteForm&&<NoteForm contactId={contact.id} onSave={n=>{saveNote(n);}} onClose={()=>setShowNoteForm(false)}/>}
+      <Modal title={contact.name} onClose={onClose} wide
+        footer={<>
+          <button className="btn btn-secondary btn-sm" onClick={()=>setConfirmDel(true)}>Delete</button>
+          <button className="btn btn-primary btn-sm" onClick={onEdit}>Edit Contact</button>
+        </>}>
+        <div className="itabs">
+          {["info","pipelines","correspondence"].map(t=>(
+            <button key={t} className={`itab${tab===t?" active":""}`} onClick={()=>setTab(t)}>
+              {t==="info"?"Info":t==="pipelines"?`Pipelines (${myOpps.length})`:`Correspondence (${myNotes.length})`}
+            </button>
+          ))}
+        </div>
+
+        {tab==="info"&&(
+          <div>
+            <div className="det-row"><div className="det-lbl">Organization</div><div className="det-val fw7">{contact.organization||"—"}</div></div>
+            <div className="det-row"><div className="det-lbl">Org Type</div><div className="det-val">{contact.orgType||"—"}</div></div>
+            <div className="det-row"><div className="det-lbl">Title</div><div className="det-val">{contact.title||"—"}</div></div>
+            <div className="det-row"><div className="det-lbl">Email</div><div className="det-val">{contact.email?<a href={`mailto:${contact.email}`}>{contact.email}</a>:"—"}</div></div>
+            <div className="det-row"><div className="det-lbl">Phone</div><div className="det-val">{contact.phone||"—"}</div></div>
+            <div className="det-row"><div className="det-lbl">Last Contact</div>
+              <div className="det-val">{fmtDate(contact.lastContact)} {ds!=null&&<span style={{color:ds>60?"#c0392b":ds>30?"#d4681a":"#1e6b42",fontSize:11,fontWeight:700}}>({ds}d ago)</span>}</div>
+            </div>
+            {contact.notes&&<div className="det-row"><div className="det-lbl">Notes</div><div className="det-val" style={{fontSize:12,lineHeight:1.6,color:"#444"}}>{contact.notes}</div></div>}
+          </div>
+        )}
+
+        {tab==="pipelines"&&(
+          <div>
+            {myOpps.length===0&&<div className="empty">No pipeline opportunities yet</div>}
+            {myOpps.map(o=>{
+              const p=PIPELINES[o.pipeline];
+              return (
+                <div key={o.id} className="card mb-14" style={{borderLeft:`4px solid ${p?.color||"#ccc"}`}}>
+                  <div className="card-body" style={{padding:"12px 15px"}}>
+                    <div className="flex jsb items-c mb-14" style={{marginBottom:6}}>
+                      <span style={{fontWeight:700,fontSize:13}}>{o.name}</span>
+                      <PipeBadge pipeline={o.pipeline}/>
+                    </div>
+                    <div className="flex gap-8" style={{flexWrap:"wrap",fontSize:12}}>
+                      <StageBadge stage={o.stage} pipeline={o.pipeline}/>
+                      <span style={{color:"var(--green2)",fontWeight:600}}>{fmtAmt(o.amount)}</span>
+                      {o.probability!=null&&<span className="txt-muted">{o.probability}% prob.</span>}
+                      {o.closeDate&&<span className="txt-muted">Close: {fmtDate(o.closeDate)}</span>}
+                    </div>
+                    {o.notes&&<div style={{fontSize:11,color:"#777",marginTop:5}}>{o.notes}</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {tab==="correspondence"&&(
+          <div>
+            <div className="flex jsb items-c mb-14" style={{marginBottom:12}}>
+              <span className="txt-muted">{myNotes.length} item{myNotes.length!==1?"s":""}</span>
+              <button className="btn btn-primary btn-sm" onClick={()=>setShowNoteForm(true)}>+ Log</button>
+            </div>
+            {myNotes.length===0&&<div className="empty">No correspondence logged yet.<br/>Use the Log button to add emails, calls, or meeting notes.</div>}
+            <div className="corr-timeline">
+              {myNotes.map(n=>(
+                <div key={n.id} className="corr-item">
+                  <div className="corr-dot" style={{background:NOTE_COLORS[n.type]||"#ccc",marginTop:6}}/>
+                  <div className="corr-body">
+                    <div className="corr-type" style={{color:NOTE_COLORS[n.type]||"#ccc"}}>{n.type}</div>
+                    <div className="corr-header">
+                      <span className="corr-subject">{n.subject}</span>
+                      <span className="corr-date">{fmtDate(n.date)}</span>
+                    </div>
+                    {n.body&&<div className="corr-text">{n.body}</div>}
+                  </div>
+                  <button className="btn btn-xs btn-secondary" style={{alignSelf:"flex-start"}} onClick={()=>deleteNote(n.id)}>×</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Modal>
+    </>
+  );
+}
+
+/* ── CONTACT FORM ───────────────────────────────────────── */
+function ContactForm({contact,onSave,onClose}){
+  const blank={id:genId(),name:"",email:"",phone:"",organization:"",orgType:"Foundation",title:"",lastContact:"",notes:""};
+  const [f,setF]=useState(contact?{...contact}:blank);
+  const upd=(k,v)=>setF(p=>({...p,[k]:v}));
+  const save=()=>{
+    if(!f.name.trim()){alert("Name is required");return;}
+    onSave(f); onClose();
+  };
+  return (
+    <Modal title={contact?"Edit Contact":"New Contact"} onClose={onClose}
+      footer={<><button className="btn btn-secondary" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={save}>Save</button></>}>
+      <div className="frow">
+        <div className="fg"><label className="fl">Name *</label><input className="finp" value={f.name} onChange={e=>upd("name",e.target.value)} placeholder="Full name"/></div>
+        <div className="fg"><label className="fl">Title</label><input className="finp" value={f.title} onChange={e=>upd("title",e.target.value)} placeholder="Job title"/></div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="fl">Organization</label><input className="finp" value={f.organization} onChange={e=>upd("organization",e.target.value)} placeholder="Organization name"/></div>
+        <div className="fg"><label className="fl">Org Type</label>
+          <select className="finp" value={f.orgType} onChange={e=>upd("orgType",e.target.value)}>
+            {ORG_TYPES.map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="fl">Email</label><input className="finp" type="email" value={f.email} onChange={e=>upd("email",e.target.value)} placeholder="email@org.com"/></div>
+        <div className="fg"><label className="fl">Phone</label><input className="finp" value={f.phone} onChange={e=>upd("phone",e.target.value)} placeholder="+1 (555) 000-0000"/></div>
+      </div>
+      <div className="fg"><label className="fl">Last Contact Date</label><input className="finp" type="date" value={f.lastContact} onChange={e=>upd("lastContact",e.target.value)}/></div>
+      <div className="fg"><label className="fl">Notes</label><textarea className="finp" value={f.notes} onChange={e=>upd("notes",e.target.value)} placeholder="Background, context, talking points…"/></div>
+    </Modal>
+  );
+}
+
+/* ── BULK UPLOAD ────────────────────────────────────────── */
+function BulkUpload({onImport,onClose}){
+  const [rows,setRows]=useState(null);
+  const [errors,setErrors]=useState([]);
+  const fileRef=useRef();
+
+  const downloadTemplate=()=>{
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["Name","Email","Phone","Organization","Org Type","Title","Last Contact (YYYY-MM-DD)","Notes"],
+      ["Jane Smith","jane@example.org","+1 555 000 0000","Example Foundation","Foundation","Investment Director","2026-04-01","Met at conference"]
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,"Contacts");
+    XLSX.writeFile(wb,"TIIP_Contact_Template.xlsx");
+  };
+
+  const handleFile=e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const wb=XLSX.read(ev.target.result,{type:"binary"});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const data=XLSX.utils.sheet_to_json(ws,{defval:""});
+      const errs=[];
+      const parsed=data.map((row,i)=>{
+        const name=(row["Name"]||"").toString().trim();
+        const email=(row["Email"]||"").toString().trim();
+        const org=(row["Organization"]||"").toString().trim();
+        const orgType=(row["Org Type"]||"Foundation").toString().trim();
+        const phone=(row["Phone"]||"").toString().trim();
+        const title=(row["Title"]||"").toString().trim();
+        const lastContact=(row["Last Contact (YYYY-MM-DD)"]||"").toString().trim();
+        const notes=(row["Notes"]||"").toString().trim();
+        if(!name) errs.push(`Row ${i+2}: Name is required`);
+        return {id:genId(),name,email,phone,organization:org,orgType:ORG_TYPES.includes(orgType)?orgType:"Other",title,lastContact,notes,_row:i+2,_ok:!!name};
+      });
+      setRows(parsed); setErrors(errs);
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const doImport=()=>{
+    const valid=rows.filter(r=>r._ok).map(({_row,_ok,...r})=>r);
+    onImport(valid); onClose();
+  };
+
+  return (
+    <Modal title="Import Contacts" onClose={onClose}
+      footer={rows&&<><button className="btn btn-secondary" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={doImport} disabled={!rows||rows.filter(r=>r._ok).length===0}>Import {rows?rows.filter(r=>r._ok).length:0} Contacts</button></>}>
+      {!rows?(
+        <div>
+          <p style={{fontSize:13,marginBottom:16,color:"#444",lineHeight:1.6}}>Download the Excel template, fill it in with your contacts, then upload it here. Required fields will be validated before import.</p>
+          <div className="flex gap-8 mb-14" style={{marginBottom:14}}>
+            <button className="btn btn-secondary" onClick={downloadTemplate}>⬇ Download Template</button>
+            <button className="btn btn-primary" onClick={()=>fileRef.current.click()}>⬆ Upload File</button>
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{display:"none"}} onChange={handleFile}/>
+          </div>
+          <p className="txt-muted">Supported: .xlsx, .xls, .csv</p>
+        </div>
+      ):(
+        <div>
+          <div className="flex jsb items-c mb-14" style={{marginBottom:10}}>
+            <span style={{fontSize:13,fontWeight:700}}>{rows.filter(r=>r._ok).length} of {rows.length} rows valid</span>
+            <button className="btn btn-secondary btn-sm" onClick={()=>{setRows(null);setErrors([]);}}>Upload Different File</button>
+          </div>
+          {errors.length>0&&<div style={{background:"#fff1f0",border:"1px solid #fca5a5",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#c0392b"}}>{errors.map((e,i)=><div key={i}>{e}</div>)}</div>}
+          <div style={{maxHeight:280,overflowY:"auto"}}>
+            {rows.slice(0,20).map((r,i)=>(
+              <div key={i} className={`import-row ${r._ok?"import-ok":"import-err"}`}>
+                <span style={{fontSize:14,marginRight:8}}>{r._ok?"✓":"✗"}</span>
+                <span style={{fontWeight:700,minWidth:140}}>{r.name||"(no name)"}</span>
+                <span className="txt-muted">{r.organization} · {r.email||"no email"}</span>
+              </div>
+            ))}
+            {rows.length>20&&<div className="txt-muted" style={{padding:"6px 11px"}}>…and {rows.length-20} more</div>}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/* ── CONTACTS VIEW ──────────────────────────────────────── */
+function ContactsView({contacts,opportunities,correspondence,saveContact,deleteContact,saveNote,deleteNote}){
+  const [search,setSearch]=useState("");
+  const [orgFilter,setOrgFilter]=useState("");
+  const [sortKey,setSortKey]=useState("name");
+  const [sortDir,setSortDir]=useState(1);
+  const [selected,setSelected]=useState(null);
+  const [editing,setEditing]=useState(null);
+  const [showAdd,setShowAdd]=useState(false);
+  const [showImport,setShowImport]=useState(false);
+  const [confirm,setConfirm]=useState(null);
+
+  const filtered = useMemo(()=>{
+    let r=[...contacts];
+    if(search) r=r.filter(c=>`${c.name} ${c.organization} ${c.email}`.toLowerCase().includes(search.toLowerCase()));
+    if(orgFilter) r=r.filter(c=>c.orgType===orgFilter);
+    r.sort((a,b)=>{
+      const av=a[sortKey]||"",bv=b[sortKey]||"";
+      if(sortKey==="lastContact") return sortDir*(new Date(bv)-new Date(av));
+      return sortDir*(av.toString().localeCompare(bv.toString()));
+    });
+    return r;
+  },[contacts,search,orgFilter,sortKey,sortDir]);
+
+  const sort=(k)=>{if(sortKey===k)setSortDir(d=>-d);else{setSortKey(k);setSortDir(1);}};
+  const arrow=k=>sortKey===k?(sortDir===1?"↑":"↓"):"";
+
+  const handleEdit=(c)=>{setEditing(c);setSelected(null);};
+  const handleDelete=(id)=>{setConfirm(id);};
+
+  return (
+    <div>
+      {confirm&&<Confirm msg="Delete this contact? This cannot be undone." onYes={()=>{deleteContact(confirm);setConfirm(null);}} onNo={()=>setConfirm(null)}/>}
+      {(showAdd||editing)&&<ContactForm contact={editing} onSave={c=>{saveContact(c);setEditing(null);setShowAdd(false);}} onClose={()=>{setShowAdd(false);setEditing(null);}}/>}
+      {showImport&&<BulkUpload onImport={cs=>cs.forEach(c=>saveContact(c))} onClose={()=>setShowImport(false)}/>}
+      {selected&&<ContactDetail contact={selected} opportunities={opportunities} correspondence={correspondence}
+        onClose={()=>setSelected(null)} onEdit={()=>handleEdit(selected)} onDelete={id=>{deleteContact(id);setSelected(null);}}
+        saveNote={saveNote} deleteNote={deleteNote}/>}
+
+      <div className="sec-hd">
+        <div><div className="sec-title">Contacts</div><div className="sec-sub">{contacts.length} total</div></div>
+        <div className="flex gap-8">
+          <button className="btn btn-secondary btn-sm" onClick={()=>setShowImport(true)}>⬆ Import</button>
+          <button className="btn btn-primary" onClick={()=>setShowAdd(true)}>+ Add Contact</button>
+        </div>
+      </div>
+
+      <div className="filter-bar">
+        <input className="fi stretch" placeholder="Search name, org, email…" value={search} onChange={e=>setSearch(e.target.value)}/>
+        <select className="fi" value={orgFilter} onChange={e=>setOrgFilter(e.target.value)}>
+          <option value="">All types</option>
+          {ORG_TYPES.map(t=><option key={t}>{t}</option>)}
+        </select>
+      </div>
+
+      <div className="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onClick={()=>sort("name")}>Name {arrow("name")}</th>
+              <th onClick={()=>sort("organization")}>Organization {arrow("organization")}</th>
+              <th>Org Type</th>
+              <th>Email</th>
+              <th onClick={()=>sort("lastContact")}>Last Contact {arrow("lastContact")}</th>
+              <th>Pipelines</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length===0&&<tr><td colSpan={7}><div className="empty">No contacts match</div></td></tr>}
+            {filtered.map(c=>{
+              const ds=daysSince(c.lastContact);
+              const myOpps=opportunities.filter(o=>o.contactIds&&o.contactIds.includes(c.id));
+              return (
+                <tr key={c.id} onClick={()=>setSelected(c)} style={{cursor:"pointer"}}>
+                  <td style={{fontWeight:600}}>{c.name}</td>
+                  <td>{c.organization||"—"}</td>
+                  <td><span className="badge" style={{background:"#e4f2ea",color:"#1e6b42",fontSize:10}}>{c.orgType||"—"}</span></td>
+                  <td style={{fontSize:12,color:"#555"}}>{c.email||"—"}</td>
+                  <td style={{fontSize:12}}>
+                    {c.lastContact?<span style={{color:ds>60?"#c0392b":ds>30?"#d4681a":"#1e6b42",fontWeight:600}}>{fmtDate(c.lastContact)}</span>:"—"}
+                  </td>
+                  <td>{myOpps.map(o=><PipeBadge key={o.id} pipeline={o.pipeline}/>)}</td>
+                  <td onClick={e=>e.stopPropagation()}>
+                    <div className="flex gap-8">
+                      <button className="btn btn-xs btn-secondary" onClick={()=>handleEdit(c)}>Edit</button>
+                      <button className="btn btn-xs btn-danger" onClick={()=>handleDelete(c.id)}>Del</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ── OPP FORM ───────────────────────────────────────────── */
+function OppForm({opp,pipeline,contacts,onSave,onClose}){
+  const p = PIPELINES[pipeline];
+  const allS = allStages(pipeline);
+  const blank={id:genId(),name:"",pipeline,contactIds:[],primaryContactId:"",
+    stage:p.stages[0],amount:0,probability:STAGE_PROB[p.stages[0]]||10,
+    closeDate:"",startDate:"",renewalDate:"",users:0,termSheet:false,onboarded:false,projectType:"Consulting",notes:""};
+  const [f,setF]=useState(opp?{...opp}:blank);
+  const [cSearch,setCSearch]=useState("");
+  const upd=(k,v)=>setF(prev=>({...prev,[k]:v}));
+
+  const filteredContacts=contacts.filter(c=>
+    !cSearch||`${c.name} ${c.organization}`.toLowerCase().includes(cSearch.toLowerCase())
+  ).slice(0,50);
+
+  const toggleContact=(id)=>{
+    const ids=f.contactIds.includes(id)?f.contactIds.filter(x=>x!==id):[...f.contactIds,id];
+    const primary=ids.length>0?(ids.includes(f.primaryContactId)?f.primaryContactId:ids[0]):"";
+    setF(prev=>({...prev,contactIds:ids,primaryContactId:primary}));
+  };
+
+  const onStageChange=(s)=>{
+    const prob=STAGE_PROB[s]!=null?STAGE_PROB[s]:f.probability;
+    setF(prev=>({...prev,stage:s,probability:prob}));
+  };
+
+  const save=()=>{
+    if(!f.name.trim()){alert("Name is required");return;}
+    onSave(f); onClose();
+  };
+
+  return (
+    <Modal title={opp?`Edit: ${opp.name}`:`New ${p.label} Opportunity`} onClose={onClose} wide
+      footer={<><button className="btn btn-secondary" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={save}>Save</button></>}>
+      <div className="frow">
+        <div className="fg"><label className="fl">Name *</label><input className="finp" value={f.name} onChange={e=>upd("name",e.target.value)} placeholder="e.g. Ceniarth — Subscriber"/></div>
+        <div className="fg"><label className="fl">Stage</label>
+          <select className="finp" value={f.stage} onChange={e=>onStageChange(e.target.value)}>
+            <optgroup label="Active">{p.stages.map(s=><option key={s}>{s}</option>)}</optgroup>
+            <optgroup label="Hold / Closed">{p.holdStages.map(s=><option key={s}>{s}</option>)}</optgroup>
+          </select>
+        </div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="fl">Amount (USD)</label><input className="finp" type="number" value={f.amount} onChange={e=>upd("amount",Number(e.target.value))}/></div>
+        <div className="fg"><label className="fl">Probability %</label><input className="finp" type="number" min="0" max="100" value={f.probability} onChange={e=>upd("probability",Number(e.target.value))}/></div>
+      </div>
+      <div className="frow">
+        <div className="fg"><label className="fl">{pipeline==="subscriber"?"Start Date":pipeline==="capital"?"First Contact":"Start Date"}</label><input className="finp" type="date" value={f.startDate} onChange={e=>upd("startDate",e.target.value)}/></div>
+        <div className="fg"><label className="fl">{pipeline==="subscriber"?"Renewal Date":"Close Date"}</label>
+          <input className="finp" type="date" value={pipeline==="subscriber"?f.renewalDate:f.closeDate}
+            onChange={e=>pipeline==="subscriber"?upd("renewalDate",e.target.value):upd("closeDate",e.target.value)}/>
+        </div>
+      </div>
+      {pipeline==="subscriber"&&(
+        <div className="frow">
+          <div className="fg"><label className="fl">Users</label><input className="finp" type="number" value={f.users} onChange={e=>upd("users",Number(e.target.value))}/></div>
+          <div className="fg"><label className="fl">Status</label>
+            <div className="flex gap-8" style={{paddingTop:6}}>
+              <label style={{fontSize:12,cursor:"pointer"}}><input type="checkbox" checked={f.termSheet} onChange={e=>upd("termSheet",e.target.checked)}/> Term Sheet</label>
+              <label style={{fontSize:12,cursor:"pointer"}}><input type="checkbox" checked={f.onboarded} onChange={e=>upd("onboarded",e.target.checked)}/> Onboarded</label>
+            </div>
+          </div>
+        </div>
+      )}
+      {pipeline==="projects"&&(
+        <div className="fg"><label className="fl">Project Type</label>
+          <select className="finp" value={f.projectType} onChange={e=>upd("projectType",e.target.value)}>
+            {PROJECT_TYPES.map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+      )}
+      <div className="fg">
+        <label className="fl">Contacts</label>
+        <input className="finp" style={{marginBottom:6}} placeholder="Search contacts…" value={cSearch} onChange={e=>setCSearch(e.target.value)}/>
+        <div className="contact-picker">
+          {filteredContacts.map(c=>(
+            <div key={c.id} className="contact-picker-item" onClick={()=>toggleContact(c.id)}>
+              <input type="checkbox" readOnly checked={f.contactIds.includes(c.id)} onClick={e=>e.stopPropagation()}/>
+              <span style={{fontWeight:f.contactIds.includes(c.id)?700:400}}>{c.name}</span>
+              <span className="txt-muted" style={{marginLeft:4}}>· {c.organization}</span>
+            </div>
+          ))}
+        </div>
+        {f.contactIds.length>0&&(
+          <div style={{marginTop:6}}>
+            <label className="fl">Primary Contact</label>
+            <select className="finp" value={f.primaryContactId} onChange={e=>upd("primaryContactId",e.target.value)}>
+              {f.contactIds.map(id=>{const c=contacts.find(x=>x.id===id);return c?<option key={id} value={id}>{c.name}</option>:null;})}
+            </select>
+          </div>
+        )}
+      </div>
+      <div className="fg"><label className="fl">Notes</label><textarea className="finp" value={f.notes} onChange={e=>upd("notes",e.target.value)} placeholder="Context, next steps…"/></div>
+    </Modal>
+  );
+}
+
+/* ── KANBAN ─────────────────────────────────────────────── */
+function KanbanView({opps,pipeline,contacts,onEdit,onAdd,updateOppStage}){
+  const p=PIPELINES[pipeline];
+  const [dragging,setDragging]=useState(null);
+  const [dragOver,setDragOver]=useState(null);
+
+  const getContact=(o)=>contacts.find(c=>c.id===o.primaryContactId);
+  const col=(stage)=>opps.filter(o=>o.stage===stage);
+  const wv=(o)=>Math.round((o.amount||0)*(o.probability||0)/100);
+
+  const pipeColor={subscriber:"var(--green2)",capital:"var(--blue)",projects:"var(--purple)"}[pipeline]||"var(--green2)";
+
+  const renderCard=(o)=>{
+    const c=getContact(o);
+    return (
+      <div key={o.id} className={`kb-card${dragging===o.id?" is-dragging":""}`}
+        draggable onDragStart={()=>setDragging(o.id)} onDragEnd={()=>{setDragging(null);setDragOver(null);}}
+        onClick={()=>onEdit(o)}>
+        <div className="kb-card-name">{o.name}</div>
+        {c&&<div className="kb-card-contact">{c.name}</div>}
+        <div className="kb-card-amt">{fmtAmt(o.amount)}</div>
+        <div className="kb-card-prob">{o.probability}% · {fmtAmt(wv(o))} wtd</div>
+      </div>
+    );
+  };
+
+  const renderCol=(stage,isHold)=>{
+    const cards=col(stage);
+    const hd={};
+    if(!isHold){hd.background=pipeColor+"22";hd.color=pipeColor;}
+    else{hd.background="#f5f5f5";hd.color="#888";}
+    return (
+      <div key={stage} className="kb-col">
+        <div className="kb-hd" style={hd}>
+          <span>{stage}</span>
+          <span style={{fontSize:10,opacity:.7}}>{cards.length}</span>
+        </div>
+        <div className={`kb-body${dragOver===stage?" drag-over":""}`}
+          onDragOver={e=>{e.preventDefault();setDragOver(stage);}}
+          onDrop={e=>{e.preventDefault();if(dragging){updateOppStage(dragging,stage,pipeline);}setDragging(null);setDragOver(null);}}>
+          {cards.map(renderCard)}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <div className="kanban-wrap">
+        <div className="kanban">
+          {p.stages.map(s=>renderCol(s,false))}
+        </div>
+      </div>
+      {p.holdStages.some(s=>opps.filter(o=>o.stage===s).length>0)&&(
+        <div className="kb-hold">
+          <div className="kb-hold-title">Parking Lot</div>
+          <div className="kanban">
+            {p.holdStages.map(s=>renderCol(s,true))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── PIPELINE TABLE ─────────────────────────────────────── */
+function PipelineTable({opps,pipeline,contacts,onEdit,onDelete}){
+  const [sortKey,setSortKey]=useState("name");
+  const [sortDir,setSortDir]=useState(1);
+  const [confirm,setConfirm]=useState(null);
+  const p=PIPELINES[pipeline];
+
+  const sort=(k)=>{if(sortKey===k)setSortDir(d=>-d);else{setSortKey(k);setSortDir(1);}};
+  const arrow=k=>sortKey===k?(sortDir===1?"↑":"↓"):"";
+
+  const sorted=[...opps].sort((a,b)=>{
+    if(sortKey==="amount"||sortKey==="probability") return sortDir*(b[sortKey]-a[sortKey]);
+    if(sortKey==="closeDate"||sortKey==="renewalDate"){
+      const ad=a[sortKey]||"9999",bd=b[sortKey]||"9999";
+      return sortDir*(ad<bd?-1:1);
+    }
+    return sortDir*((a[sortKey]||"").toString().localeCompare((b[sortKey]||"").toString()));
+  });
+
+  const getContact=(o)=>contacts.find(c=>c.id===o.primaryContactId);
+  const wv=(o)=>Math.round((o.amount||0)*(o.probability||0)/100);
+
+  return (
+    <>
+      {confirm&&<Confirm msg="Delete this opportunity?" onYes={()=>{onDelete(confirm);setConfirm(null);}} onNo={()=>setConfirm(null)}/>}
+      <div className="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onClick={()=>sort("name")}>Name {arrow("name")}</th>
+              <th>Primary Contact</th>
+              <th onClick={()=>sort("stage")}>Stage {arrow("stage")}</th>
+              <th onClick={()=>sort("amount")}>Amount {arrow("amount")}</th>
+              <th onClick={()=>sort("probability")}>Prob% {arrow("probability")}</th>
+              <th>Weighted</th>
+              <th onClick={()=>sort(pipeline==="subscriber"?"renewalDate":"closeDate")}>{pipeline==="subscriber"?"Renewal":"Close Date"} {arrow(pipeline==="subscriber"?"renewalDate":"closeDate")}</th>
+              {pipeline==="projects"&&<th>Type</th>}
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.length===0&&<tr><td colSpan={8}><div className="empty">No opportunities yet. Click + Add to get started.</div></td></tr>}
+            {sorted.map(o=>{
+              const c=getContact(o);
+              const dateField=pipeline==="subscriber"?o.renewalDate:o.closeDate;
+              const du=daysUntil(dateField);
+              return (
+                <tr key={o.id}>
+                  <td style={{fontWeight:600,cursor:"pointer"}} onClick={()=>onEdit(o)}>{o.name}</td>
+                  <td style={{fontSize:12}}>{c?c.name:"—"}</td>
+                  <td><StageBadge stage={o.stage} pipeline={pipeline}/></td>
+                  <td style={{fontWeight:600,color:"var(--green2)"}}>{fmtAmt(o.amount)}</td>
+                  <td>{o.probability}%</td>
+                  <td style={{color:"var(--muted)",fontSize:12}}>{fmtAmt(wv(o))}</td>
+                  <td style={{fontSize:12}}>
+                    {dateField?<span style={{color:du!=null&&du<30?"var(--red)":du!=null&&du<90?"var(--orange)":"inherit"}}>{fmtDate(dateField)}</span>:"—"}
+                  </td>
+                  {pipeline==="projects"&&<td style={{fontSize:12}}>{o.projectType||"—"}</td>}
+                  <td>
+                    <div className="flex gap-8">
+                      <button className="btn btn-xs btn-secondary" onClick={()=>onEdit(o)}>Edit</button>
+                      <button className="btn btn-xs btn-danger" onClick={()=>setConfirm(o.id)}>Del</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+/* ── PIPELINES VIEW ─────────────────────────────────────── */
+function PipelinesView({contacts,opportunities,saveOpp,deleteOpp}){
+  const [pipeline,setPipeline]=useState("subscriber");
+  const [view,setView]=useState("kanban");
+  const [showForm,setShowForm]=useState(false);
+  const [editOpp,setEditOpp]=useState(null);
+
+  const myOpps=opportunities.filter(o=>o.pipeline===pipeline);
+  const p=PIPELINES[pipeline];
+
+  const handleEdit=(o)=>{setEditOpp(o);setShowForm(true);};
+  const handleAdd=()=>{setEditOpp(null);setShowForm(true);};
+  const handleSave=(o)=>{saveOpp(o);setShowForm(false);setEditOpp(null);};
+  const updateOppStage=(id,stage)=>{
+    const o=opportunities.find(x=>x.id===id);
+    if(!o) return;
+    const prob=STAGE_PROB[stage]!=null?STAGE_PROB[stage]:o.probability;
+    saveOpp({...o,stage,probability:prob});
+  };
+
+  const pipeColors={subscriber:"",capital:" blue-active",projects:" purple-active"};
+
+  return (
+    <div>
+      {showForm&&<OppForm opp={editOpp} pipeline={pipeline} contacts={contacts} onSave={handleSave} onClose={()=>{setShowForm(false);setEditOpp(null);}}/>}
+      <div className="sec-hd">
+        <div><div className="sec-title">Pipelines</div><div className="sec-sub">{myOpps.length} opportunities in {p.label}</div></div>
+        <button className="btn btn-primary" onClick={handleAdd}>+ Add Opportunity</button>
+      </div>
+
+      <div className="flex jsb items-c mb-14" style={{marginBottom:14}}>
+        <div className="itabs">
+          {Object.entries(PIPELINES).map(([key,pl])=>(
+            <button key={key} className={`itab${pipeColors[key]}${pipeline===key?" active":""}`} onClick={()=>setPipeline(key)}>
+              {pl.label} <span style={{fontSize:10,opacity:.7}}>({opportunities.filter(o=>o.pipeline===key).length})</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-8">
+          <button className={`btn btn-sm ${view==="kanban"?"btn-primary":"btn-secondary"}`} onClick={()=>setView("kanban")}>Kanban</button>
+          <button className={`btn btn-sm ${view==="table"?"btn-primary":"btn-secondary"}`} onClick={()=>setView("table")}>Table</button>
+        </div>
+      </div>
+
+      {view==="kanban"
+        ?<KanbanView opps={myOpps} pipeline={pipeline} contacts={contacts} onEdit={handleEdit} onAdd={handleAdd} updateOppStage={updateOppStage}/>
+        :<PipelineTable opps={myOpps} pipeline={pipeline} contacts={contacts} onEdit={handleEdit} onDelete={deleteOpp}/>
+      }
+    </div>
+  );
+}
+
+/* ── REPORTS ────────────────────────────────────────────── */
+function ReportsView({contacts,opportunities}){
+  const [tab,setTab]=useState("sail");
+  const reportRef=useRef();
+
+  const sailOpps=opportunities.filter(o=>o.pipeline==="subscriber"||o.pipeline==="capital");
+  const tiipOpps=opportunities.filter(o=>o.pipeline==="projects");
+
+  // SAIL metrics
+  const subs=opportunities.filter(o=>o.pipeline==="subscriber"&&o.stage==="Subscriber");
+  const arr=subs.reduce((s,o)=>s+(o.amount||0),0);
+  const subPipe=opportunities.filter(o=>o.pipeline==="subscriber"&&!["Subscriber","Loss","Unqualified"].includes(o.stage));
+  const subPipeVal=subPipe.reduce((s,o)=>s+(o.amount||0),0);
+  const subWtd=subPipe.reduce((s,o)=>s+Math.round((o.amount||0)*(o.probability||0)/100),0);
+  const capPipe=opportunities.filter(o=>o.pipeline==="capital"&&!["Closed","Loss"].includes(o.stage));
+  const capVal=capPipe.reduce((s,o)=>s+(o.amount||0),0);
+  const capWtd=capPipe.reduce((s,o)=>s+Math.round((o.amount||0)*(o.probability||0)/100),0);
+
+  // TIIP metrics
+  const activeProjects=tiipOpps.filter(o=>["Active","Scoping"].includes(o.stage));
+  const activeVal=activeProjects.reduce((s,o)=>s+(o.amount||0),0);
+  const projPipe=tiipOpps.filter(o=>!["Loss","Complete","Invoiced"].includes(o.stage));
+  const projPipeVal=projPipe.reduce((s,o)=>s+(o.amount||0),0);
+  const projWtd=projPipe.reduce((s,o)=>s+Math.round((o.amount||0)*(o.probability||0)/100),0);
+
+  const stageBreakdown=(pipeKey)=>{
+    const p=PIPELINES[pipeKey];
+    return [...p.stages,...p.holdStages].map(s=>({
+      name:s,
+      value:opportunities.filter(o=>o.pipeline===pipeKey&&o.stage===s).length,
+      label:opportunities.filter(o=>o.pipeline===pipeKey&&o.stage===s).length+" opps"
+    }));
+  };
+
+  const byType=PROJECT_TYPES.map(t=>({
+    name:t,
+    value:tiipOpps.filter(o=>o.projectType===t).length
+  }));
+
+  const doPrint=()=>{window.print();};
+
+  const doCopy=()=>{
+    const el=reportRef.current;
+    if(!el) return;
+    const text=el.innerText;
+    navigator.clipboard.writeText(text).then(()=>alert("Report copied to clipboard!")).catch(()=>{
+      const ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);alert("Copied!");
+    });
+  };
+
+  const today=new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+
+  return (
+    <div>
+      <div className="sec-hd">
+        <div><div className="sec-title">Reports</div><div className="sec-sub">Live data · as of {today}</div></div>
+        <div className="flex gap-8 no-print">
+          <button className="btn btn-secondary" onClick={doCopy}>📋 Copy</button>
+          <button className="btn btn-primary" onClick={doPrint}>🖨 Export PDF</button>
+        </div>
+      </div>
+
+      <div className="itabs no-print">
+        <button className={`itab${tab==="sail"?" active":""}`} onClick={()=>setTab("sail")}>SAIL Report</button>
+        <button className={`itab purple-active${tab==="tiip"?" active":""}`} onClick={()=>setTab("tiip")}>TIIP Report</button>
+        <button className={`itab blue-active${tab==="fundraising"?" active":""}`} onClick={()=>setTab("fundraising")}>Fundraising</button>
+      </div>
+
+      <div ref={reportRef}>
+        {tab==="sail"&&(
+          <div>
+            <h2 style={{fontSize:18,fontWeight:800,color:"#163626",marginBottom:16,borderBottom:"3px solid #e4f2ea",paddingBottom:10}}>SAIL — Quarterly Report</h2>
+
+            <div className="kpi-row">
+              <div className="kpi"><div className="kpi-val">{fmtAmt(arr)}</div><div className="kpi-lbl">Annual Recurring Revenue</div></div>
+              <div className="kpi"><div className="kpi-val">{subs.length}</div><div className="kpi-lbl">Active Subscribers</div></div>
+              <div className="kpi gold"><div className="kpi-val">{fmtAmt(subPipeVal)}</div><div className="kpi-lbl">Subscriber Pipeline</div></div>
+              <div className="kpi gold"><div className="kpi-val">{fmtAmt(subWtd)}</div><div className="kpi-lbl">Weighted Pipeline</div></div>
+            </div>
+
+            <div className="report-section">
+              <div className="report-section-title">Subscriber Pipeline by Stage</div>
+              <HBar data={stageBreakdown("subscriber").filter(d=>d.value>0)} color="var(--green2)"/>
+            </div>
+
+            {opportunities.filter(o=>o.pipeline==="capital").length>0&&(
+              <div className="report-section">
+                <div className="report-section-title">Capital Raise Pipeline</div>
+                <div className="kpi-row">
+                  <div className="kpi blue"><div className="kpi-val">{fmtAmt(capVal)}</div><div className="kpi-lbl">Total Pipeline</div></div>
+                  <div className="kpi blue"><div className="kpi-val">{fmtAmt(capWtd)}</div><div className="kpi-lbl">Weighted Pipeline</div></div>
+                  <div className="kpi blue"><div className="kpi-val">{capPipe.length}</div><div className="kpi-lbl">Active Opportunities</div></div>
+                </div>
+                <HBar data={stageBreakdown("capital").filter(d=>d.value>0)} color="var(--blue)"/>
+              </div>
+            )}
+
+            <div className="report-section">
+              <div className="report-section-title">Active Subscribers</div>
+              <div className="tbl-wrap">
+                <table>
+                  <thead><tr><th>Name</th><th>Contact</th><th>ARR</th><th>Renewal</th><th>Users</th></tr></thead>
+                  <tbody>
+                    {subs.length===0&&<tr><td colSpan={5}><div className="empty">No active subscribers</div></td></tr>}
+                    {subs.map(o=>{
+                      const c=contacts.find(x=>x.id===o.primaryContactId);
+                      const du=daysUntil(o.renewalDate);
+                      return (
+                        <tr key={o.id}>
+                          <td style={{fontWeight:600}}>{o.name}</td>
+                          <td>{c?.name||"—"}</td>
+                          <td style={{color:"var(--green2)",fontWeight:600}}>{fmtAmt(o.amount)}</td>
+                          <td style={{fontSize:12,color:du!=null&&du<60?"var(--red)":"inherit"}}>{fmtDate(o.renewalDate)}{du!=null&&<span style={{fontSize:10,marginLeft:4}}>({du}d)</span>}</td>
+                          <td>{o.users||"—"}</td>
+                        </tr>
+                      );
+                    })}
+                    <tr style={{background:"#f6faf7",fontWeight:700}}>
+                      <td colSpan={2}>Total ARR</td>
+                      <td style={{color:"var(--green2)"}}>{fmtAmt(arr)}</td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab==="tiip"&&(
+          <div>
+            <h2 style={{fontSize:18,fontWeight:800,color:"#163626",marginBottom:16,borderBottom:"3px solid #f0e6fb",paddingBottom:10}}>TIIP — Quarterly Report</h2>
+
+            <div className="kpi-row">
+              <div className="kpi purple"><div className="kpi-val">{activeProjects.length}</div><div className="kpi-lbl">Active Projects</div></div>
+              <div className="kpi purple"><div className="kpi-val">{fmtAmt(activeVal)}</div><div className="kpi-lbl">Active Project Value</div></div>
+              <div className="kpi"><div className="kpi-val">{fmtAmt(projPipeVal)}</div><div className="kpi-lbl">Pipeline Value</div></div>
+              <div className="kpi"><div className="kpi-val">{fmtAmt(projWtd)}</div><div className="kpi-lbl">Weighted Pipeline</div></div>
+            </div>
+
+            <div className="report-section">
+              <div className="report-section-title">Pipeline by Stage</div>
+              <HBar data={stageBreakdown("projects").filter(d=>d.value>0)} color="var(--purple)"/>
+            </div>
+
+            <div className="report-section">
+              <div className="report-section-title">By Project Type</div>
+              <HBar data={byType.filter(d=>d.value>0)} color="#6a3c9a"/>
+            </div>
+
+            {tiipOpps.length>0&&(
+              <div className="report-section">
+                <div className="report-section-title">All Projects</div>
+                <div className="tbl-wrap">
+                  <table>
+                    <thead><tr><th>Project</th><th>Contact</th><th>Stage</th><th>Type</th><th>Value</th><th>Prob%</th><th>Weighted</th></tr></thead>
+                    <tbody>
+                      {tiipOpps.filter(o=>!["Loss"].includes(o.stage)).map(o=>{
+                        const c=contacts.find(x=>x.id===o.primaryContactId);
+                        return (
+                          <tr key={o.id}>
+                            <td style={{fontWeight:600}}>{o.name}</td>
+                            <td>{c?.name||"—"}</td>
+                            <td><StageBadge stage={o.stage} pipeline="projects"/></td>
+                            <td style={{fontSize:12}}>{o.projectType||"—"}</td>
+                            <td style={{color:"var(--green2)",fontWeight:600}}>{fmtAmt(o.amount)}</td>
+                            <td>{o.probability}%</td>
+                            <td className="txt-muted">{fmtAmt(Math.round((o.amount||0)*(o.probability||0)/100))}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {tiipOpps.length===0&&<div className="empty">No TIIP projects yet. Add them in the Pipelines tab.</div>}
+          </div>
+        )}
+
+        {tab==="fundraising"&&(
+          <div>
+            <h2 style={{fontSize:18,fontWeight:800,color:"#163626",marginBottom:16,borderBottom:"3px solid #dbeafe",paddingBottom:10}}>Fundraising — Capital Raise Report</h2>
+
+            <div className="kpi-row">
+              <div className="kpi blue"><div className="kpi-val">{fmtAmt(capVal)}</div><div className="kpi-lbl">Total Pipeline</div></div>
+              <div className="kpi blue"><div className="kpi-val">{fmtAmt(capWtd)}</div><div className="kpi-lbl">Weighted Pipeline</div></div>
+              <div className="kpi"><div className="kpi-val">{capPipe.length}</div><div className="kpi-lbl">Active Opportunities</div></div>
+              <div className="kpi"><div className="kpi-val">{opportunities.filter(o=>o.pipeline==="capital"&&o.stage==="Closed").length}</div><div className="kpi-lbl">Closed</div></div>
+            </div>
+
+            <div className="report-section">
+              <div className="report-section-title">Pipeline by Stage</div>
+              {opportunities.filter(o=>o.pipeline==="capital").length===0
+                ?<div className="empty" style={{textAlign:"left",padding:"12px 0",color:"#6b8070",fontSize:13}}>No capital raise opportunities yet. Add them in the Pipelines tab under "SAIL Capital Raise".</div>
+                :<HBar data={stageBreakdown("capital").filter(d=>d.value>0)} color="var(--blue)"/>
+              }
+            </div>
+
+            {opportunities.filter(o=>o.pipeline==="capital").length>0&&(
+              <div className="report-section">
+                <div className="report-section-title">All Opportunities</div>
+                <div className="tbl-wrap">
+                  <table>
+                    <thead><tr><th>Name</th><th>Contact</th><th>Stage</th><th>Amount</th><th>Prob%</th><th>Weighted</th><th>Close Date</th></tr></thead>
+                    <tbody>
+                      {opportunities.filter(o=>o.pipeline==="capital"&&o.stage!=="Loss").map(o=>{
+                        const c=contacts.find(x=>x.id===o.primaryContactId);
+                        return (
+                          <tr key={o.id}>
+                            <td style={{fontWeight:600}}>{o.name}</td>
+                            <td>{c?.name||"—"}</td>
+                            <td><StageBadge stage={o.stage} pipeline="capital"/></td>
+                            <td style={{color:"#1a6fa8",fontWeight:600}}>{fmtAmt(o.amount)}</td>
+                            <td>{o.probability}%</td>
+                            <td style={{color:"var(--muted)",fontSize:12}}>{fmtAmt(Math.round((o.amount||0)*(o.probability||0)/100))}</td>
+                            <td style={{fontSize:12}}>{fmtDate(o.closeDate)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── APP ────────────────────────────────────────────────── */
+function App(){
+  const [authed,setAuthed]=useState(false);
+  const [tab,setTab]=useState("command");
+  // Start with seed data immediately so the CRM is never empty
+  const [contacts,setContacts]=useState(CONTACTS_SEED);
+  const [opportunities,setOpportunities]=useState(OPPS_SEED);
+  const [tasks,setTasks]=useState([]);
+  const [correspondence,setCorrespondence]=useState([]);
+  const [loading,setLoading]=useState(false);
+  const [fbStatus,setFbStatus]=useState("connecting"); // "connecting"|"live"|"local"
+  const [syncStatus,setSyncStatus]=useState("ok");
+
+  // Try to connect Firebase and sync — if it fails, stay on local data silently
+  useEffect(()=>{
+    if(!authed) return;
+    const unsubs=[];
+    let settled=false;
+    const timeout=setTimeout(()=>{
+      if(!settled){setFbStatus("local");}
+    },6000);
+
+    const tryConnect=async()=>{
+      try{
+        // Check if v2 data exists in Firebase; if not, seed it
+        const metaRef=DB.collection("crm_meta").doc("v2");
+        const meta=await metaRef.get();
+        if(!meta.exists){
+          // Write seed data to Firebase
+          const batch1=DB.batch();
+          CONTACTS_SEED.forEach(c=>batch1.set(DB.collection("contacts_v2").doc(c.id),c));
+          await batch1.commit();
+          const batch2=DB.batch();
+          OPPS_SEED.forEach(o=>batch2.set(DB.collection("opportunities_v2").doc(o.id),o));
+          await batch2.commit();
+          await metaRef.set({seeded:true,seededAt:firebase.firestore.FieldValue.serverTimestamp()});
+        }
+        // Set up live listeners
+        unsubs.push(DB.collection("contacts_v2").onSnapshot(snap=>{
+          if(snap.docs.length>0) setContacts(snap.docs.map(d=>({...d.data(),id:d.id})));
+          settled=true; clearTimeout(timeout); setFbStatus("live");
+        },(err)=>{console.warn("contacts listener:",err); setFbStatus("local");settled=true;clearTimeout(timeout);}));
+        unsubs.push(DB.collection("opportunities_v2").onSnapshot(snap=>{
+          if(snap.docs.length>0) setOpportunities(snap.docs.map(d=>({...d.data(),id:d.id})));
+        },(err)=>console.warn("opps listener:",err)));
+        unsubs.push(DB.collection("tasks_v2").onSnapshot(snap=>{
+          setTasks(snap.docs.map(d=>({...d.data(),id:d.id})));
+        },(err)=>console.warn("tasks listener:",err)));
+        unsubs.push(DB.collection("correspondence_v2").onSnapshot(snap=>{
+          setCorrespondence(snap.docs.map(d=>({...d.data(),id:d.id})));
+        },(err)=>console.warn("corr listener:",err)));
+      }catch(e){
+        console.warn("Firebase unavailable, running on local data:",e);
+        setFbStatus("local"); settled=true; clearTimeout(timeout);
+      }
+    };
+    tryConnect();
+    return ()=>{unsubs.forEach(u=>u());clearTimeout(timeout);};
+  },[authed]);
+
+  // CRUD: write to local state immediately, then try Firebase (best-effort)
+  const applyLocal=(setter,fn)=>(item)=>{setter(prev=>fn(prev,item));return Promise.resolve();};
+
+  const fbWrite=(fn)=>{
+    if(fbStatus!=="live") return Promise.resolve();
+    setSyncStatus("loading");
+    return fn().then(()=>setSyncStatus("ok")).catch(e=>{setSyncStatus("error");console.warn(e);});
+  };
+
+  const saveContact=useCallback((c)=>{
+    setContacts(prev=>{const ex=prev.find(x=>x.id===c.id);return ex?prev.map(x=>x.id===c.id?c:x):[...prev,c];});
+    return fbWrite(()=>DB.collection("contacts_v2").doc(c.id).set(c));
+  },[fbStatus]);
+  const deleteContact=useCallback((id)=>{
+    setContacts(prev=>prev.filter(x=>x.id!==id));
+    return fbWrite(()=>DB.collection("contacts_v2").doc(id).delete());
+  },[fbStatus]);
+  const saveOpp=useCallback((o)=>{
+    setOpportunities(prev=>{const ex=prev.find(x=>x.id===o.id);return ex?prev.map(x=>x.id===o.id?o:x):[...prev,o];});
+    return fbWrite(()=>DB.collection("opportunities_v2").doc(o.id).set(o));
+  },[fbStatus]);
+  const deleteOpp=useCallback((id)=>{
+    setOpportunities(prev=>prev.filter(x=>x.id!==id));
+    return fbWrite(()=>DB.collection("opportunities_v2").doc(id).delete());
+  },[fbStatus]);
+  const saveTask=useCallback((t)=>{
+    setTasks(prev=>{const ex=prev.find(x=>x.id===t.id);return ex?prev.map(x=>x.id===t.id?t:x):[...prev,t];});
+    return fbWrite(()=>DB.collection("tasks_v2").doc(t.id).set(t));
+  },[fbStatus]);
+  const deleteTask=useCallback((id)=>{
+    setTasks(prev=>prev.filter(x=>x.id!==id));
+    return fbWrite(()=>DB.collection("tasks_v2").doc(id).delete());
+  },[fbStatus]);
+  const saveNote=useCallback((n)=>{
+    setCorrespondence(prev=>{const ex=prev.find(x=>x.id===n.id);return ex?prev.map(x=>x.id===n.id?n:x):[...prev,n];});
+    return fbWrite(()=>DB.collection("correspondence_v2").doc(n.id).set(n));
+  },[fbStatus]);
+  const deleteNote=useCallback((id)=>{
+    setCorrespondence(prev=>prev.filter(x=>x.id!==id));
+    return fbWrite(()=>DB.collection("correspondence_v2").doc(id).delete());
+  },[fbStatus]);
+
+  if(!authed) return <AuthScreen onAuth={()=>setAuthed(true)}/>;
+
+  const navItems=[
+    {key:"command",label:"⌂ Command Center"},
+    {key:"contacts",label:"👥 Contacts"},
+    {key:"pipelines",label:"📊 Pipelines"},
+    {key:"reports",label:"📄 Reports"},
+    {key:"sdr",label:"🤖 SDR Agent",disabled:true}
+  ];
+
+  const statusLabel={
+    connecting:"Connecting to Firebase…",
+    live:syncStatus==="loading"?"Syncing…":syncStatus==="error"?"Sync error — changes saved locally":"Live · Firebase",
+    local:"Local mode — Firebase rules need renewal"
+  }[fbStatus]||"";
+  const statusColor={connecting:"#b8922a",live:syncStatus==="error"?"#c0392b":"#4caf80",local:"#d4681a"}[fbStatus];
+
+  return (
+    <div>
+      <div className="topbar">
+        <div className="logo">
+          <div className="logo-sq">TS</div>
+          <div><div className="logo-name">TIIP / SAIL CRM</div><div className="logo-sub">v2 · {contacts.length} contacts</div></div>
+        </div>
+        <div className="topbar-right">
+          <span style={{fontSize:11}}>{new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
+        </div>
+      </div>
+      <div className="sync-bar">
+        <div className={`sync-dot${fbStatus==="connecting"||syncStatus==="loading"?" pulse":""}`} style={{background:statusColor}}/>
+        <span>{statusLabel}</span>
+        {fbStatus==="local"&&<span style={{marginLeft:8,fontSize:11,opacity:.7}}>· All edits work but won't persist between sessions until Firebase rules are renewed</span>}
+      </div>
+      <div className="nav no-print">
+        {navItems.map(n=>(
+          <button key={n.key}
+            className={`nav-btn${tab===n.key?" active":""}`}
+            onClick={()=>!n.disabled&&setTab(n.key)}
+            title={n.disabled?"Coming soon — SDR Agent not yet active":""}
+            style={n.disabled?{color:"#b0c4b8",cursor:"not-allowed",opacity:.55}:{}}>
+            {n.label}{n.disabled&&<span style={{fontSize:9,marginLeft:5,background:"#e8f0eb",color:"#6b8070",padding:"1px 5px",borderRadius:10,fontWeight:700,verticalAlign:"middle"}}>SOON</span>}
+          </button>
+        ))}
+      </div>
+      <div className="main">
+        {tab==="command"&&<CommandCenter contacts={contacts} opportunities={opportunities} tasks={tasks}
+          saveTask={saveTask} deleteTask={deleteTask} onViewContact={c=>{setTab("contacts");}}/>}
+        {tab==="contacts"&&<ContactsView contacts={contacts} opportunities={opportunities} correspondence={correspondence}
+          saveContact={saveContact} deleteContact={deleteContact} saveNote={saveNote} deleteNote={deleteNote}/>}
+        {tab==="pipelines"&&<PipelinesView contacts={contacts} opportunities={opportunities} saveOpp={saveOpp} deleteOpp={deleteOpp}/>}
+        {tab==="reports"&&<ReportsView contacts={contacts} opportunities={opportunities}/>}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<App/>, document.getElementById("root"));
+</script>
+</body>
+</html>
