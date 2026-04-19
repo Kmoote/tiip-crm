@@ -7,8 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -234,17 +233,11 @@ textarea.finp{resize:vertical;min-height:68px}
 <script type="text/babel">
 const {useState,useEffect,useMemo,useCallback,useRef} = React;
 
-/* ── FIREBASE ───────────────────────────────────────────── */
-const FIREBASE_CONFIG = {
-  apiKey:"AIzaSyBrLn5FUNT-WVPCXzu2sF8wYXgLmRzuPS8",
-  authDomain:"sail-crm.firebaseapp.com",
-  projectId:"sail-crm",
-  storageBucket:"sail-crm.firebasestorage.app",
-  messagingSenderId:"386178845446",
-  appId:"1:386178845446:web:60a116e3ad169888e9ec87"
-};
-let _app; try{_app=firebase.app();}catch(e){_app=firebase.initializeApp(FIREBASE_CONFIG);}
-const DB = firebase.firestore(_app, 'default');
+/* ── SUPABASE ───────────────────────────────────────────── */
+const SUPABASE_URL = "https://vdaqbwbsnkrlkqbjllfa.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_eL3-4rwKB6FqEFqron4jvw_gP5PlrcO";
+const { createClient } = window.supabase;
+const DB = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* ── CONSTANTS ──────────────────────────────────────────── */
 const CRM_PASSWORD = "tiip2026";
@@ -1474,57 +1467,40 @@ function App(){
   const [fbStatus,setFbStatus]=useState("connecting"); // "connecting"|"live"|"local"
   const [syncStatus,setSyncStatus]=useState("ok");
 
-  // Try to connect Firebase and sync — if it fails, stay on local data silently
+  // Load from Supabase on auth — seed if empty, fall back to local data silently on error
   useEffect(()=>{
     if(!authed) return;
-    const unsubs=[];
-    let settled=false;
-    const timeout=setTimeout(()=>{
-      if(!settled){setFbStatus("local");}
-    },6000);
-
-    const tryConnect=async()=>{
+    const load=async()=>{
       try{
-        // Check if v2 data exists in Firebase; if not, seed it
-        const metaRef=DB.collection("crm_meta").doc("v2");
-        const meta=await metaRef.get();
-        if(!meta.exists){
-          // Write seed data to Firebase
-          const batch1=DB.batch();
-          CONTACTS_SEED.forEach(c=>batch1.set(DB.collection("contacts_v2").doc(c.id),c));
-          await batch1.commit();
-          const batch2=DB.batch();
-          OPPS_SEED.forEach(o=>batch2.set(DB.collection("opportunities_v2").doc(o.id),o));
-          await batch2.commit();
-          await metaRef.set({seeded:true,seededAt:firebase.firestore.FieldValue.serverTimestamp()});
+        const {data:dbContacts,error:cErr}=await DB.from("contacts").select("*");
+        if(cErr) throw cErr;
+        if(!dbContacts||dbContacts.length===0){
+          // First run — seed the database (local state already has seed data)
+          const {error:e1}=await DB.from("contacts").upsert(CONTACTS_SEED);
+          if(e1) throw e1;
+          const {error:e2}=await DB.from("opportunities").upsert(OPPS_SEED);
+          if(e2) throw e2;
+        } else {
+          // Load persisted data from Supabase
+          setContacts(dbContacts);
+          const {data:dbOpps}=await DB.from("opportunities").select("*");
+          if(dbOpps&&dbOpps.length>0) setOpportunities(dbOpps);
+          const {data:dbTasks}=await DB.from("tasks").select("*");
+          if(dbTasks) setTasks(dbTasks);
+          const {data:dbCorr}=await DB.from("correspondence").select("*");
+          if(dbCorr) setCorrespondence(dbCorr);
         }
-        // Set up live listeners
-        unsubs.push(DB.collection("contacts_v2").onSnapshot(snap=>{
-          if(snap.docs.length>0) setContacts(snap.docs.map(d=>({...d.data(),id:d.id})));
-          settled=true; clearTimeout(timeout); setFbStatus("live");
-        },(err)=>{console.warn("contacts listener:",err); setFbStatus("local");settled=true;clearTimeout(timeout);}));
-        unsubs.push(DB.collection("opportunities_v2").onSnapshot(snap=>{
-          if(snap.docs.length>0) setOpportunities(snap.docs.map(d=>({...d.data(),id:d.id})));
-        },(err)=>console.warn("opps listener:",err)));
-        unsubs.push(DB.collection("tasks_v2").onSnapshot(snap=>{
-          setTasks(snap.docs.map(d=>({...d.data(),id:d.id})));
-        },(err)=>console.warn("tasks listener:",err)));
-        unsubs.push(DB.collection("correspondence_v2").onSnapshot(snap=>{
-          setCorrespondence(snap.docs.map(d=>({...d.data(),id:d.id})));
-        },(err)=>console.warn("corr listener:",err)));
+        setFbStatus("live");
       }catch(e){
-        console.warn("Firebase unavailable, running on local data:",e);
-        setFbStatus("local"); settled=true; clearTimeout(timeout);
+        console.warn("Supabase unavailable, running on local data:",e);
+        setFbStatus("local");
       }
     };
-    tryConnect();
-    return ()=>{unsubs.forEach(u=>u());clearTimeout(timeout);};
+    load();
   },[authed]);
 
-  // CRUD: write to local state immediately, then try Firebase (best-effort)
-  const applyLocal=(setter,fn)=>(item)=>{setter(prev=>fn(prev,item));return Promise.resolve();};
-
-  const fbWrite=(fn)=>{
+  // CRUD: update local state immediately, sync to Supabase in background
+  const sbWrite=(fn)=>{
     if(fbStatus!=="live") return Promise.resolve();
     setSyncStatus("loading");
     return fn().then(()=>setSyncStatus("ok")).catch(e=>{setSyncStatus("error");console.warn(e);});
@@ -1532,35 +1508,35 @@ function App(){
 
   const saveContact=useCallback((c)=>{
     setContacts(prev=>{const ex=prev.find(x=>x.id===c.id);return ex?prev.map(x=>x.id===c.id?c:x):[...prev,c];});
-    return fbWrite(()=>DB.collection("contacts_v2").doc(c.id).set(c));
+    return sbWrite(async()=>{const {error}=await DB.from("contacts").upsert(c);if(error)throw error;});
   },[fbStatus]);
   const deleteContact=useCallback((id)=>{
     setContacts(prev=>prev.filter(x=>x.id!==id));
-    return fbWrite(()=>DB.collection("contacts_v2").doc(id).delete());
+    return sbWrite(async()=>{const {error}=await DB.from("contacts").delete().eq("id",id);if(error)throw error;});
   },[fbStatus]);
   const saveOpp=useCallback((o)=>{
     setOpportunities(prev=>{const ex=prev.find(x=>x.id===o.id);return ex?prev.map(x=>x.id===o.id?o:x):[...prev,o];});
-    return fbWrite(()=>DB.collection("opportunities_v2").doc(o.id).set(o));
+    return sbWrite(async()=>{const {error}=await DB.from("opportunities").upsert(o);if(error)throw error;});
   },[fbStatus]);
   const deleteOpp=useCallback((id)=>{
     setOpportunities(prev=>prev.filter(x=>x.id!==id));
-    return fbWrite(()=>DB.collection("opportunities_v2").doc(id).delete());
+    return sbWrite(async()=>{const {error}=await DB.from("opportunities").delete().eq("id",id);if(error)throw error;});
   },[fbStatus]);
   const saveTask=useCallback((t)=>{
     setTasks(prev=>{const ex=prev.find(x=>x.id===t.id);return ex?prev.map(x=>x.id===t.id?t:x):[...prev,t];});
-    return fbWrite(()=>DB.collection("tasks_v2").doc(t.id).set(t));
+    return sbWrite(async()=>{const {error}=await DB.from("tasks").upsert(t);if(error)throw error;});
   },[fbStatus]);
   const deleteTask=useCallback((id)=>{
     setTasks(prev=>prev.filter(x=>x.id!==id));
-    return fbWrite(()=>DB.collection("tasks_v2").doc(id).delete());
+    return sbWrite(async()=>{const {error}=await DB.from("tasks").delete().eq("id",id);if(error)throw error;});
   },[fbStatus]);
   const saveNote=useCallback((n)=>{
     setCorrespondence(prev=>{const ex=prev.find(x=>x.id===n.id);return ex?prev.map(x=>x.id===n.id?n:x):[...prev,n];});
-    return fbWrite(()=>DB.collection("correspondence_v2").doc(n.id).set(n));
+    return sbWrite(async()=>{const {error}=await DB.from("correspondence").upsert(n);if(error)throw error;});
   },[fbStatus]);
   const deleteNote=useCallback((id)=>{
     setCorrespondence(prev=>prev.filter(x=>x.id!==id));
-    return fbWrite(()=>DB.collection("correspondence_v2").doc(id).delete());
+    return sbWrite(async()=>{const {error}=await DB.from("correspondence").delete().eq("id",id);if(error)throw error;});
   },[fbStatus]);
 
   if(!authed) return <AuthScreen onAuth={()=>setAuthed(true)}/>;
@@ -1574,9 +1550,9 @@ function App(){
   ];
 
   const statusLabel={
-    connecting:"Connecting to Firebase…",
-    live:syncStatus==="loading"?"Syncing…":syncStatus==="error"?"Sync error — changes saved locally":"Live · Firebase",
-    local:"Local mode — Firebase rules need renewal"
+    connecting:"Connecting to Supabase…",
+    live:syncStatus==="loading"?"Syncing…":syncStatus==="error"?"Sync error — changes saved locally":"Live · Supabase",
+    local:"Local mode — check Supabase connection"
   }[fbStatus]||"";
   const statusColor={connecting:"#b8922a",live:syncStatus==="error"?"#c0392b":"#4caf80",local:"#d4681a"}[fbStatus];
 
