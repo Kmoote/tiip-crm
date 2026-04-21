@@ -38,6 +38,7 @@ function syncBccEmails() {
         sender_email: senderEmail,
         subject: msg.getSubject() || "(no subject)",
         body_snippet: body.substring(0, 600),
+        body: body,
         received_at: msg.getDate().toISOString(),
         reviewed: false
       });
