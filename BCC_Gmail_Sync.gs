@@ -36,6 +36,7 @@ function syncBccEmails() {
         gmail_message_id: msg.getId(),
         sender_name: senderName,
         sender_email: senderEmail,
+        to_recipients: msg.getTo() || "",
         subject: msg.getSubject() || "(no subject)",
         body_snippet: body.substring(0, 600),
         body: body,

@@ -15,6 +15,7 @@ create table if not exists bcc_emails (
   created_at        timestamp with time zone default now()
 );
 
--- Migration: add body and contact_id columns if table already exists
+-- Migration: add columns if table already exists
 alter table bcc_emails add column if not exists body text;
 alter table bcc_emails add column if not exists contact_id text;
+alter table bcc_emails add column if not exists to_recipients text;

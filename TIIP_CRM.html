@@ -529,7 +529,7 @@ function CommandCenter({contacts,opportunities,tasks,saveTask,deleteTask,onViewC
                 <div className="card-body" style={{maxHeight:300,overflowY:"auto"}}>
                   {pending.length===0&&<div className="empty" style={{fontSize:12}}>No new emails. BCC TIIPbizdev@gmail.com to capture.</div>}
                   {pending.map(e=>{
-                    const autoMatch=contacts.find(c=>c.email&&c.email.toLowerCase()===e.sender_email.toLowerCase());
+                    const autoMatch=contacts.find(c=>c.email&&(e.to_recipients||"").toLowerCase().includes(c.email.toLowerCase()));
                     const selectedId=autoMatch?.id||bccLinks[e.id]||"";
                     const selectedContact=contacts.find(c=>c.id===selectedId);
                     const dismiss=()=>saveBccEmail({...e,reviewed:true});
@@ -1592,7 +1592,7 @@ function MessagesView({bccEmails,contacts,saveBccEmail,saveNote}){
             <tbody>
               {filtered.map(e=>{
                 const linked=contacts.find(c=>c.id===e.contact_id);
-                const autoMatch=!e.contact_id&&contacts.find(c=>c.email&&c.email.toLowerCase()===e.sender_email.toLowerCase());
+                const autoMatch=!e.contact_id&&contacts.find(c=>c.email&&(e.to_recipients||"").toLowerCase().includes(c.email.toLowerCase()));
                 const pendingLink=linkMap[e.id]||"";
                 return (
                   <tr key={e.id}>
