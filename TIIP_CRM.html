@@ -448,7 +448,7 @@ function AuthScreen({onAuth}){
 }
 
 /* ── COMMAND CENTER ──────────────────────────────────────── */
-function CommandCenter({contacts,opportunities,tasks,saveTask,deleteTask,onViewContact}){
+function CommandCenter({contacts,opportunities,tasks,saveTask,deleteTask,onViewContact,bccEmails,saveBccEmail,saveNote}){
   const [newTask,setNewTask]=useState("");
   const today = new Date();
   const days = d => daysSince(d);
@@ -515,18 +515,50 @@ function CommandCenter({contacts,opportunities,tasks,saveTask,deleteTask,onViewC
           </div>
 
           {/* BCC INBOX */}
-          <div className="card mt-12">
-            <div className="card-hd" style={{opacity:.6}}>
-              <span className="card-title">📬 BCC Inbox — New Contacts to Review</span>
-              <span style={{fontSize:10,background:"#f0f4f2",color:"#6b8070",padding:"2px 8px",borderRadius:20,fontWeight:700}}>COMING SOON</span>
-            </div>
-            <div className="card-body" style={{opacity:.5}}>
-              <div className="empty" style={{padding:"18px 0",fontSize:12}}>
-                BCC email capture not yet active.<br/>
-                Once enabled, emails BCC'd to your CRM address will appear here for review.
+          {(()=>{
+            const pending=(bccEmails||[]).filter(e=>!e.reviewed);
+            return (
+              <div className="card mt-12">
+                <div className="card-hd">
+                  <span className="card-title">📬 BCC Inbox
+                    {pending.length>0&&<span style={{marginLeft:6,fontSize:11,color:"#1a6fa8",fontWeight:700}}>{pending.length} new</span>}
+                  </span>
+                  <span style={{fontSize:10,color:"#6b8070"}}>TIIPbizdev@gmail.com</span>
+                </div>
+                <div className="card-body" style={{maxHeight:300,overflowY:"auto"}}>
+                  {pending.length===0&&<div className="empty" style={{fontSize:12}}>No new emails. BCC TIIPbizdev@gmail.com to capture.</div>}
+                  {pending.map(e=>{
+                    const match=contacts.find(c=>c.email&&c.email.toLowerCase()===e.sender_email.toLowerCase());
+                    const dismiss=()=>saveBccEmail({...e,reviewed:true});
+                    const logNote=()=>{
+                      saveNote({id:genId(),contactId:match.id,type:"Email",subject:e.subject,body:e.body_snippet,date:(e.received_at||"").split("T")[0]||new Date().toISOString().split("T")[0]});
+                      saveBccEmail({...e,reviewed:true});
+                    };
+                    return (
+                      <div key={e.id} style={{borderBottom:"1px solid #e8f0eb",padding:"10px 0"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                          <div style={{minWidth:0}}>
+                            <div style={{fontWeight:700,fontSize:13}}>{e.sender_name||e.sender_email}</div>
+                            <div style={{fontSize:11,color:"#6b8070"}}>{e.sender_email}</div>
+                            <div style={{fontSize:12,fontWeight:600,marginTop:2}}>{e.subject}</div>
+                            {e.body_snippet&&<div style={{fontSize:11,color:"#6b8070",marginTop:2}}>{e.body_snippet.slice(0,120)}{e.body_snippet.length>120?"…":""}</div>}
+                          </div>
+                          <div style={{fontSize:10,color:"#b0c4b8",whiteSpace:"nowrap"}}>{(e.received_at||"").split("T")[0]}</div>
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:6,marginTop:7,flexWrap:"wrap"}}>
+                          {match
+                            ?<span style={{fontSize:10,color:"#1e6b42",background:"#e4f2ea",padding:"2px 7px",borderRadius:10}}>✓ {match.name}</span>
+                            :<span style={{fontSize:10,color:"#b0c4b8"}}>No contact match</span>}
+                          {match&&<button className="btn btn-xs btn-primary" onClick={logNote}>Log Email Note</button>}
+                          <button className="btn btn-xs btn-secondary" onClick={dismiss}>Dismiss</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
 
         {/* RENEWALS */}
@@ -1463,6 +1495,7 @@ function App(){
   const [opportunities,setOpportunities]=useState(OPPS_SEED);
   const [tasks,setTasks]=useState([]);
   const [correspondence,setCorrespondence]=useState([]);
+  const [bccEmails,setBccEmails]=useState([]);
   const [loading,setLoading]=useState(false);
   const [fbStatus,setFbStatus]=useState("connecting"); // "connecting"|"live"|"local"
   const [syncStatus,setSyncStatus]=useState("ok");
@@ -1489,6 +1522,8 @@ function App(){
           if(dbTasks) setTasks(dbTasks);
           const {data:dbCorr}=await DB.from("correspondence").select("*");
           if(dbCorr) setCorrespondence(dbCorr);
+          const {data:dbBcc}=await DB.from("bcc_emails").select("*").eq("reviewed",false).order("received_at",{ascending:false});
+          if(dbBcc) setBccEmails(dbBcc);
         }
         setFbStatus("live");
       }catch(e){
@@ -1538,6 +1573,10 @@ function App(){
     setCorrespondence(prev=>prev.filter(x=>x.id!==id));
     return sbWrite(async()=>{const {error}=await DB.from("correspondence").delete().eq("id",id);if(error)throw error;});
   },[fbStatus]);
+  const saveBccEmail=useCallback((b)=>{
+    setBccEmails(prev=>prev.map(x=>x.id===b.id?b:x));
+    return sbWrite(async()=>{const {error}=await DB.from("bcc_emails").upsert(b);if(error)throw error;});
+  },[fbStatus]);
 
   if(!authed) return <AuthScreen onAuth={()=>setAuthed(true)}/>;
 
@@ -1585,7 +1624,8 @@ function App(){
       </div>
       <div className="main">
         {tab==="command"&&<CommandCenter contacts={contacts} opportunities={opportunities} tasks={tasks}
-          saveTask={saveTask} deleteTask={deleteTask} onViewContact={c=>{setTab("contacts");}}/>}
+          saveTask={saveTask} deleteTask={deleteTask} onViewContact={c=>{setTab("contacts");}}
+          bccEmails={bccEmails} saveBccEmail={saveBccEmail} saveNote={saveNote}/>}
         {tab==="contacts"&&<ContactsView contacts={contacts} opportunities={opportunities} correspondence={correspondence}
           saveContact={saveContact} deleteContact={deleteContact} saveNote={saveNote} deleteNote={deleteNote}/>}
         {tab==="pipelines"&&<PipelinesView contacts={contacts} opportunities={opportunities} saveOpp={saveOpp} deleteOpp={deleteOpp}/>}
