@@ -218,6 +218,8 @@ textarea.finp{resize:vertical;min-height:68px}
 
 /* PRINT */
 @media print{
+  /* Force browsers to preserve background colors on chart bars and KPI cards in the PDF output (B-005) */
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
   .topbar,.nav,.sync-bar,.nav-btn,.btn,.filter-bar,.itabs,.no-print{display:none!important}
   .main{padding:0}
   .report-print-area{display:block!important}
@@ -247,7 +249,7 @@ const PIPELINES = {
     stages:["Qualified","Scheduling Demo","Demoed","Term Sheet Sent","Contract Review","Subscriber","Up for Renewal"],
     holdStages:["Stalled","On Hold","Unqualified","Loss"]},
   capital:{label:"SAIL Capital Raise",entity:"SAIL",color:"#1a6fa8",bg:"#dbeafe",
-    stages:["Identified","First Contact","Pitched","Due Diligence","Committed","Closed"],
+    stages:["Identified","First Contact","Pitched","Due Diligence","Committed","Won"],
     holdStages:["On Hold","Loss"]},
   projects:{label:"TIIP Projects",entity:"TIIP",color:"#6a3c9a",bg:"#f0e6fb",
     stages:["Prospect","Proposal","Scoping","Active","Complete","Invoiced"],
@@ -257,14 +259,26 @@ const PIPELINES = {
 const STAGE_PROB = {
   "Qualified":10,"Scheduling Demo":20,"Demoed":35,"Term Sheet Sent":60,
   "Contract Review":80,"Subscriber":100,"Up for Renewal":85,
-  "Identified":5,"First Contact":15,"Pitched":30,"Due Diligence":60,"Committed":85,"Closed":100,
+  "Identified":5,"First Contact":15,"Pitched":30,"Due Diligence":60,"Committed":85,"Won":100,
   "Prospect":10,"Proposal":25,"Scoping":50,"Active":90,"Complete":100,"Invoiced":100,
   "Stalled":10,"On Hold":5,"Unqualified":0,"Loss":0
 };
 
+// Dev-time sanity check: warn if any PIPELINES stage lacks a STAGE_PROB entry (C-001).
+// Unmapped stages silently default to 0, which breaks Kanban probability display and weighted-pipeline math.
+(function validateStageProb(){
+  const missing=[];
+  Object.entries(PIPELINES).forEach(([pipeKey,p])=>{
+    [...p.stages,...p.holdStages].forEach(s=>{
+      if(!(s in STAGE_PROB)) missing.push(`${pipeKey}.${s}`);
+    });
+  });
+  if(missing.length) console.warn("[STAGE_PROB] Missing probability entries for:",missing.join(", "));
+})();
+
 const ORG_TYPES = ["Asset Manager","Central Bank","Coalition","Consultant/OCIO","Consulting",
-  "Endowment","Family Office","Foundation","Insurance/Asset Owner","Organization","Pension Fund","Wealth Mgmt","Other"];
-const PROJECT_TYPES = ["Consulting","Research","Cohort","Other"];
+  "Endowment","Family Office","Foundation","Insurance/Asset Owner","Organization","Pension Fund","Private Equity","Wealth Mgmt","Other"];
+const PROJECT_TYPES = ["Consulting","Research","Cohort","Events","Other"];
 const NOTE_TYPES = ["Email","Call","Meeting","Note"];
 const NOTE_COLORS = {Email:"#1a6fa8",Call:"#1e6b42",Meeting:"#6a3c9a",Note:"#b8922a"};
 
@@ -681,8 +695,6 @@ function ContactDetail({contact,opportunities,correspondence,bccEmails,onClose,o
 
   return (
     <>
-      {confirmDel&&<Confirm msg={`Delete ${contact.name}? This cannot be undone.`} onYes={()=>{onDelete(contact.id);onClose();}} onNo={()=>setConfirmDel(false)}/>}
-      {showNoteForm&&<NoteForm contactId={contact.id} onSave={n=>{saveNote(n);}} onClose={()=>setShowNoteForm(false)}/>}
       <Modal title={contact.name} onClose={onClose} wide
         footer={<>
           <button className="btn btn-secondary btn-sm" onClick={()=>setConfirmDel(true)}>Delete</button>
@@ -715,11 +727,16 @@ function ContactDetail({contact,opportunities,correspondence,bccEmails,onClose,o
             {myOpps.length===0&&<div className="empty">No pipeline opportunities yet</div>}
             {myOpps.map(o=>{
               const p=PIPELINES[o.pipeline];
+              // C-007: show this contact's role on the opp — ★ primary, ○ secondary
+              const isPrimary=o.primaryContactId===contact.id;
               return (
                 <div key={o.id} className="card mb-14" style={{borderLeft:`4px solid ${p?.color||"#ccc"}`}}>
                   <div className="card-body" style={{padding:"12px 15px"}}>
                     <div className="flex jsb items-c mb-14" style={{marginBottom:6}}>
-                      <span style={{fontWeight:700,fontSize:13}}>{o.name}</span>
+                      <span style={{fontWeight:700,fontSize:13}}>
+                        <span title={isPrimary?"Primary contact on this opportunity":"Secondary contact on this opportunity"} style={{color:isPrimary?"#d4a017":"#8aa097",marginRight:6,fontSize:13}}>{isPrimary?"★":"○"}</span>
+                        {o.name}
+                      </span>
                       <PipeBadge pipeline={o.pipeline}/>
                     </div>
                     <div className="flex gap-8" style={{flexWrap:"wrap",fontSize:12}}>
@@ -777,6 +794,9 @@ function ContactDetail({contact,opportunities,correspondence,bccEmails,onClose,o
           </div>
         )}
       </Modal>
+      {/* Nested dialogs render AFTER parent Modal so they stack on top (equal z-index, later DOM order wins) */}
+      {confirmDel&&<Confirm msg={`Delete ${contact.name}? This cannot be undone.`} onYes={()=>{onDelete(contact.id);onClose();}} onNo={()=>setConfirmDel(false)}/>}
+      {showNoteForm&&<NoteForm contactId={contact.id} onSave={n=>{saveNote(n);}} onClose={()=>setShowNoteForm(false)}/>}
     </>
   );
 }
@@ -1053,12 +1073,7 @@ function OppForm({opp,pipeline,contacts,onSave,onClose}){
       {pipeline==="subscriber"&&(
         <div className="frow">
           <div className="fg"><label className="fl">Users</label><input className="finp" type="number" value={f.users} onChange={e=>upd("users",Number(e.target.value))}/></div>
-          <div className="fg"><label className="fl">Status</label>
-            <div className="flex gap-8" style={{paddingTop:6}}>
-              <label style={{fontSize:12,cursor:"pointer"}}><input type="checkbox" checked={f.termSheet} onChange={e=>upd("termSheet",e.target.checked)}/> Term Sheet</label>
-              <label style={{fontSize:12,cursor:"pointer"}}><input type="checkbox" checked={f.onboarded} onChange={e=>upd("onboarded",e.target.checked)}/> Onboarded</label>
-            </div>
-          </div>
+          {/* C-004: Status (termSheet/onboarded) checkboxes removed — the Stage dropdown already captures deal state. */}
         </div>
       )}
       {pipeline==="projects"&&(
@@ -1069,23 +1084,33 @@ function OppForm({opp,pipeline,contacts,onSave,onClose}){
         </div>
       )}
       <div className="fg">
-        <label className="fl">Contacts</label>
+        <label className="fl">Contacts <span className="txt-muted" style={{fontWeight:400,fontSize:11}}>— click ○ to mark primary (★)</span></label>
         <input className="finp" style={{marginBottom:6}} placeholder="Search contacts…" value={cSearch} onChange={e=>setCSearch(e.target.value)}/>
         <div className="contact-picker">
-          {filteredContacts.map(c=>(
-            <div key={c.id} className="contact-picker-item" onClick={()=>toggleContact(c.id)}>
-              <input type="checkbox" readOnly checked={f.contactIds.includes(c.id)} onClick={e=>e.stopPropagation()}/>
-              <span style={{fontWeight:f.contactIds.includes(c.id)?700:400}}>{c.name}</span>
-              <span className="txt-muted" style={{marginLeft:4}}>· {c.organization}</span>
-            </div>
-          ))}
+          {filteredContacts.map(c=>{
+            // B-006: checkbox is now a real control (not readOnly) — both the checkbox and the surrounding row toggle selection.
+            // C-006/C-007: selected contacts show ★ (primary) or ○ (secondary); click the circle to promote to primary.
+            const sel=f.contactIds.includes(c.id);
+            const isPrimary=sel && c.id===f.primaryContactId;
+            return (
+              <div key={c.id} className="contact-picker-item" onClick={()=>toggleContact(c.id)} style={{display:"flex",alignItems:"center"}}>
+                <input type="checkbox" checked={sel} onChange={()=>toggleContact(c.id)} onClick={e=>e.stopPropagation()}/>
+                <span style={{fontWeight:sel?700:400}}>{c.name}</span>
+                <span className="txt-muted" style={{marginLeft:4}}>· {c.organization}</span>
+                {sel&&(
+                  <span
+                    onClick={e=>{e.stopPropagation();upd("primaryContactId",c.id);}}
+                    title={isPrimary?"Primary contact":"Click to make primary"}
+                    style={{marginLeft:"auto",cursor:"pointer",fontSize:14,lineHeight:1,color:isPrimary?"#d4a017":"#b5c9be",paddingLeft:8}}
+                  >{isPrimary?"★":"○"}</span>
+                )}
+              </div>
+            );
+          })}
         </div>
-        {f.contactIds.length>0&&(
-          <div style={{marginTop:6}}>
-            <label className="fl">Primary Contact</label>
-            <select className="finp" value={f.primaryContactId} onChange={e=>upd("primaryContactId",e.target.value)}>
-              {f.contactIds.map(id=>{const c=contacts.find(x=>x.id===id);return c?<option key={id} value={id}>{c.name}</option>:null;})}
-            </select>
+        {f.contactIds.length>0&&!f.contactIds.includes(f.primaryContactId)&&(
+          <div className="txt-muted" style={{fontSize:11,marginTop:4,color:"var(--red)"}}>
+            No primary contact set — click ○ next to one of the selected contacts above.
           </div>
         )}
       </div>
@@ -1144,17 +1169,11 @@ function KanbanView({opps,pipeline,contacts,onEdit,onAdd,updateOppStage}){
     <div>
       <div className="kanban-wrap">
         <div className="kanban">
+          {/* Active stages, then parking-lot (hold) stages inline to the right — greyed headers flag them visually (C-010) */}
           {p.stages.map(s=>renderCol(s,false))}
+          {p.holdStages.map(s=>renderCol(s,true))}
         </div>
       </div>
-      {p.holdStages.some(s=>opps.filter(o=>o.stage===s).length>0)&&(
-        <div className="kb-hold">
-          <div className="kb-hold-title">Parking Lot</div>
-          <div className="kanban">
-            {p.holdStages.map(s=>renderCol(s,true))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1299,7 +1318,7 @@ function ReportsView({contacts,opportunities}){
   const subPipe=opportunities.filter(o=>o.pipeline==="subscriber"&&!["Subscriber","Loss","Unqualified"].includes(o.stage));
   const subPipeVal=subPipe.reduce((s,o)=>s+(o.amount||0),0);
   const subWtd=subPipe.reduce((s,o)=>s+Math.round((o.amount||0)*(o.probability||0)/100),0);
-  const capPipe=opportunities.filter(o=>o.pipeline==="capital"&&!["Closed","Loss"].includes(o.stage));
+  const capPipe=opportunities.filter(o=>o.pipeline==="capital"&&!["Won","Loss"].includes(o.stage));
   const capVal=capPipe.reduce((s,o)=>s+(o.amount||0),0);
   const capWtd=capPipe.reduce((s,o)=>s+Math.round((o.amount||0)*(o.probability||0)/100),0);
 
@@ -1370,17 +1389,7 @@ function ReportsView({contacts,opportunities}){
               <HBar data={stageBreakdown("subscriber").filter(d=>d.value>0)} color="var(--green2)"/>
             </div>
 
-            {opportunities.filter(o=>o.pipeline==="capital").length>0&&(
-              <div className="report-section">
-                <div className="report-section-title">Capital Raise Pipeline</div>
-                <div className="kpi-row">
-                  <div className="kpi blue"><div className="kpi-val">{fmtAmt(capVal)}</div><div className="kpi-lbl">Total Pipeline</div></div>
-                  <div className="kpi blue"><div className="kpi-val">{fmtAmt(capWtd)}</div><div className="kpi-lbl">Weighted Pipeline</div></div>
-                  <div className="kpi blue"><div className="kpi-val">{capPipe.length}</div><div className="kpi-lbl">Active Opportunities</div></div>
-                </div>
-                <HBar data={stageBreakdown("capital").filter(d=>d.value>0)} color="var(--blue)"/>
-              </div>
-            )}
+            {/* Capital Raise block intentionally omitted from the SAIL Report — it lives on the Fundraising tab (C-009) */}
 
             <div className="report-section">
               <div className="report-section-title">Active Subscribers</div>
@@ -1473,7 +1482,7 @@ function ReportsView({contacts,opportunities}){
               <div className="kpi blue"><div className="kpi-val">{fmtAmt(capVal)}</div><div className="kpi-lbl">Total Pipeline</div></div>
               <div className="kpi blue"><div className="kpi-val">{fmtAmt(capWtd)}</div><div className="kpi-lbl">Weighted Pipeline</div></div>
               <div className="kpi"><div className="kpi-val">{capPipe.length}</div><div className="kpi-lbl">Active Opportunities</div></div>
-              <div className="kpi"><div className="kpi-val">{opportunities.filter(o=>o.pipeline==="capital"&&o.stage==="Closed").length}</div><div className="kpi-lbl">Closed</div></div>
+              <div className="kpi"><div className="kpi-val">{opportunities.filter(o=>o.pipeline==="capital"&&o.stage==="Won").length}</div><div className="kpi-lbl">Won</div></div>
             </div>
 
             <div className="report-section">
@@ -1518,17 +1527,22 @@ function ReportsView({contacts,opportunities}){
 }
 
 /* ── MESSAGES VIEW ──────────────────────────────────────── */
-function MessagesView({bccEmails,contacts,saveBccEmail,saveNote}){
+function MessagesView({bccEmails,contacts,saveBccEmail,deleteBccEmail,saveNote}){
   const [search,setSearch]=useState("");
   const [filter,setFilter]=useState("all");
   const [viewEmail,setViewEmail]=useState(null);
   const [linkMap,setLinkMap]=useState({});
+  const [confirmDel,setConfirmDel]=useState(null); // C-003: holds email pending delete confirmation
 
   const filtered=useMemo(()=>{
     let r=[...(bccEmails||[])];
     if(filter==="unreviewed") r=r.filter(e=>!e.reviewed);
     if(filter==="reviewed") r=r.filter(e=>e.reviewed);
-    if(search) r=r.filter(e=>`${e.sender_name||""} ${e.sender_email||""} ${e.subject||""}`.toLowerCase().includes(search.toLowerCase()));
+    if(search){
+      const q=search.toLowerCase();
+      // B-003: search every field of the email — sender, subject, body, recipients
+      r=r.filter(e=>`${e.sender_name||""} ${e.sender_email||""} ${e.subject||""} ${e.to_recipients||""} ${e.body||""} ${e.body_snippet||""}`.toLowerCase().includes(q));
+    }
     return r.sort((a,b)=>new Date(b.received_at)-new Date(a.received_at));
   },[bccEmails,filter,search]);
 
@@ -1562,6 +1576,8 @@ function MessagesView({bccEmails,contacts,saveBccEmail,saveNote}){
           ))}
         </div>
       </div>
+
+      {confirmDel&&<Confirm msg={`Permanently delete email "${confirmDel.subject||"(no subject)"}"? This cannot be undone.`} onYes={()=>{deleteBccEmail(confirmDel.id);setConfirmDel(null);}} onNo={()=>setConfirmDel(null)}/>}
 
       {viewEmail&&(
         <Modal title={viewEmail.subject||"(no subject)"} onClose={()=>setViewEmail(null)} wide>
@@ -1636,6 +1652,9 @@ function MessagesView({bccEmails,contacts,saveBccEmail,saveNote}){
                             if(pendingLink) setLinkMap(m=>{const n={...m};delete n[e.id];return n;});
                           }}>Log</button>
                         )}
+                        {deleteBccEmail&&(
+                          <button className="btn btn-xs" style={{color:"var(--red)",background:"#fff",border:"1px solid var(--border)"}} title="Delete email permanently" onClick={()=>setConfirmDel(e)}>×</button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1660,7 +1679,7 @@ function App(){
   const [correspondence,setCorrespondence]=useState([]);
   const [bccEmails,setBccEmails]=useState([]);
   const [loading,setLoading]=useState(false);
-  const [fbStatus,setFbStatus]=useState("connecting"); // "connecting"|"live"|"local"
+  const [dbStatus,setDbStatus]=useState("connecting"); // "connecting"|"live"|"local"
   const [syncStatus,setSyncStatus]=useState("ok");
 
   // Load from Supabase on auth — seed if empty, fall back to local data silently on error
@@ -1686,12 +1705,27 @@ function App(){
           const {data:dbCorr}=await DB.from("correspondence").select("*");
           if(dbCorr) setCorrespondence(dbCorr);
           const {data:dbBcc}=await DB.from("bcc_emails").select("*").order("received_at",{ascending:false});
-          if(dbBcc) setBccEmails(dbBcc);
+          if(dbBcc){
+            // B-004: auto-link any unlinked BCC email whose To: field contains exactly one
+            // known contact email. Multiple-match or zero-match rows stay unlinked for Bill's review.
+            const autoLinked=dbBcc.map(e=>{
+              if(e.contact_id) return e;
+              const to=(e.to_recipients||"").toLowerCase();
+              const matches=dbContacts.filter(c=>c.email&&to.includes(c.email.toLowerCase()));
+              return matches.length===1 ? {...e,contact_id:matches[0].id} : e;
+            });
+            const newlyLinked=autoLinked.filter((e,i)=>e.contact_id&&!dbBcc[i].contact_id);
+            if(newlyLinked.length){
+              await DB.from("bcc_emails").upsert(newlyLinked);
+              console.log(`[BCC auto-link] Linked ${newlyLinked.length} email(s) to contacts by To: address match`);
+            }
+            setBccEmails(autoLinked);
+          }
         }
-        setFbStatus("live");
+        setDbStatus("live");
       }catch(e){
         console.warn("Supabase unavailable, running on local data:",e);
-        setFbStatus("local");
+        setDbStatus("local");
       }
     };
     load();
@@ -1699,7 +1733,7 @@ function App(){
 
   // CRUD: update local state immediately, sync to Supabase in background
   const sbWrite=(fn)=>{
-    if(fbStatus!=="live") return Promise.resolve();
+    if(dbStatus!=="live") return Promise.resolve();
     setSyncStatus("loading");
     return fn().then(()=>setSyncStatus("ok")).catch(e=>{setSyncStatus("error");console.warn(e);});
   };
@@ -1707,39 +1741,43 @@ function App(){
   const saveContact=useCallback((c)=>{
     setContacts(prev=>{const ex=prev.find(x=>x.id===c.id);return ex?prev.map(x=>x.id===c.id?c:x):[...prev,c];});
     return sbWrite(async()=>{const {error}=await DB.from("contacts").upsert(c);if(error)throw error;});
-  },[fbStatus]);
+  },[dbStatus]);
   const deleteContact=useCallback((id)=>{
     setContacts(prev=>prev.filter(x=>x.id!==id));
     return sbWrite(async()=>{const {error}=await DB.from("contacts").delete().eq("id",id);if(error)throw error;});
-  },[fbStatus]);
+  },[dbStatus]);
   const saveOpp=useCallback((o)=>{
     setOpportunities(prev=>{const ex=prev.find(x=>x.id===o.id);return ex?prev.map(x=>x.id===o.id?o:x):[...prev,o];});
     return sbWrite(async()=>{const {error}=await DB.from("opportunities").upsert(o);if(error)throw error;});
-  },[fbStatus]);
+  },[dbStatus]);
   const deleteOpp=useCallback((id)=>{
     setOpportunities(prev=>prev.filter(x=>x.id!==id));
     return sbWrite(async()=>{const {error}=await DB.from("opportunities").delete().eq("id",id);if(error)throw error;});
-  },[fbStatus]);
+  },[dbStatus]);
   const saveTask=useCallback((t)=>{
     setTasks(prev=>{const ex=prev.find(x=>x.id===t.id);return ex?prev.map(x=>x.id===t.id?t:x):[...prev,t];});
     return sbWrite(async()=>{const {error}=await DB.from("tasks").upsert(t);if(error)throw error;});
-  },[fbStatus]);
+  },[dbStatus]);
   const deleteTask=useCallback((id)=>{
     setTasks(prev=>prev.filter(x=>x.id!==id));
     return sbWrite(async()=>{const {error}=await DB.from("tasks").delete().eq("id",id);if(error)throw error;});
-  },[fbStatus]);
+  },[dbStatus]);
   const saveNote=useCallback((n)=>{
     setCorrespondence(prev=>{const ex=prev.find(x=>x.id===n.id);return ex?prev.map(x=>x.id===n.id?n:x):[...prev,n];});
     return sbWrite(async()=>{const {error}=await DB.from("correspondence").upsert(n);if(error)throw error;});
-  },[fbStatus]);
+  },[dbStatus]);
   const deleteNote=useCallback((id)=>{
     setCorrespondence(prev=>prev.filter(x=>x.id!==id));
     return sbWrite(async()=>{const {error}=await DB.from("correspondence").delete().eq("id",id);if(error)throw error;});
-  },[fbStatus]);
+  },[dbStatus]);
   const saveBccEmail=useCallback((b)=>{
     setBccEmails(prev=>prev.map(x=>x.id===b.id?b:x));
     return sbWrite(async()=>{const {error}=await DB.from("bcc_emails").upsert(b);if(error)throw error;});
-  },[fbStatus]);
+  },[dbStatus]);
+  const deleteBccEmail=useCallback((id)=>{
+    setBccEmails(prev=>prev.filter(x=>x.id!==id));
+    return sbWrite(async()=>{const {error}=await DB.from("bcc_emails").delete().eq("id",id);if(error)throw error;});
+  },[dbStatus]);
 
   if(!authed) return <AuthScreen onAuth={()=>setAuthed(true)}/>;
 
@@ -1756,8 +1794,8 @@ function App(){
     connecting:"Connecting to Supabase…",
     live:syncStatus==="loading"?"Syncing…":syncStatus==="error"?"Sync error — changes saved locally":"Live · Supabase",
     local:"Local mode — check Supabase connection"
-  }[fbStatus]||"";
-  const statusColor={connecting:"#b8922a",live:syncStatus==="error"?"#c0392b":"#4caf80",local:"#d4681a"}[fbStatus];
+  }[dbStatus]||"";
+  const statusColor={connecting:"#b8922a",live:syncStatus==="error"?"#c0392b":"#4caf80",local:"#d4681a"}[dbStatus];
 
   return (
     <div>
@@ -1771,9 +1809,9 @@ function App(){
         </div>
       </div>
       <div className="sync-bar">
-        <div className={`sync-dot${fbStatus==="connecting"||syncStatus==="loading"?" pulse":""}`} style={{background:statusColor}}/>
+        <div className={`sync-dot${dbStatus==="connecting"||syncStatus==="loading"?" pulse":""}`} style={{background:statusColor}}/>
         <span>{statusLabel}</span>
-        {fbStatus==="local"&&<span style={{marginLeft:8,fontSize:11,opacity:.7}}>· All edits work but won't persist between sessions until Firebase rules are renewed</span>}
+        {dbStatus==="local"&&<span style={{marginLeft:8,fontSize:11,opacity:.7}}>· All edits work locally but won't persist between sessions until the database connection is restored</span>}
       </div>
       <div className="nav no-print">
         {navItems.map(n=>(
@@ -1792,7 +1830,7 @@ function App(){
           bccEmails={bccEmails} saveBccEmail={saveBccEmail} saveNote={saveNote}/>}
         {tab==="contacts"&&<ContactsView contacts={contacts} opportunities={opportunities} correspondence={correspondence}
           bccEmails={bccEmails} saveContact={saveContact} deleteContact={deleteContact} saveNote={saveNote} deleteNote={deleteNote}/>}
-        {tab==="messages"&&<MessagesView bccEmails={bccEmails} contacts={contacts} saveBccEmail={saveBccEmail} saveNote={saveNote}/>}
+        {tab==="messages"&&<MessagesView bccEmails={bccEmails} contacts={contacts} saveBccEmail={saveBccEmail} deleteBccEmail={deleteBccEmail} saveNote={saveNote}/>}
         {tab==="pipelines"&&<PipelinesView contacts={contacts} opportunities={opportunities} saveOpp={saveOpp} deleteOpp={deleteOpp}/>}
         {tab==="reports"&&<ReportsView contacts={contacts} opportunities={opportunities}/>}
       </div>
